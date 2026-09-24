@@ -1,0 +1,175 @@
+@import "tailwindcss";
+
+/* ─── Custom Properties (Design Tokens) ──────────────────────────────────── */
+:root {
+  --bg-app: #0A0A0F;
+  --bg-card: #15151F;
+  --bg-surface: #1E1E2A;
+  --bg-input: #12121A;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+
+  --accent-violet: #A78BFA;
+  --accent-coral: #FB7185;
+  --accent-gradient: linear-gradient(135deg, var(--accent-violet) 0%, var(--accent-coral) 100%);
+  --accent-glow: 0 0 30px rgba(167, 139, 250, 0.4);
+
+  --success: #34D399;
+  --error: #F87171;
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  
+  --safe-area-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* ─── Global Resets ──────────────────────────────────────────────────────── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  background: #000000; /* Outer background for desktop */
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--text-primary);
+  /* Desktop wrapper to mimic mobile */
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+#app-container {
+  width: 100%;
+  max-width: 430px; /* Mobile width */
+  background: var(--bg-app);
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 40px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hide scrollbar for clean app feel */
+::-webkit-scrollbar {
+  display: none;
+}
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ─── Typography ─────────────────────────────────────────────────────────── */
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.gradient-text {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Utility Components ─────────────────────────────────────────────────── */
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 24px;
+  background: var(--accent-gradient);
+  color: white;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: opacity 0.2s;
+  width: 100%;
+}
+
+.btn-primary:active {
+  opacity: 0.8;
+}
+
+.btn-pill {
+  padding: 8px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-pill.active {
+  border-color: var(--accent-violet);
+  color: var(--accent-violet);
+  background: rgba(167, 139, 250, 0.1);
+}
+
+.card-dark {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+
+.input-flat {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  outline: none;
+}
+.input-flat::placeholder {
+  color: var(--text-muted);
+}
+
+.fab {
+  position: absolute;
+  bottom: calc(80px + var(--safe-area-bottom));
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  box-shadow: var(--accent-glow);
+  cursor: pointer;
+  z-index: 40;
+}
+
+/* ─── Animations ─────────────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease forwards;
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@genvid/providers",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "types": "index.ts",
+  "dependencies": {
+    "@genvid/schemas": "workspace:*",
+    "@google/genai": "^2.24.0",
+    "groq-sdk": "^0.7.0"
+  }
+}

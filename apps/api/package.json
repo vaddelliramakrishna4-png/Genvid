@@ -1,0 +1,26 @@
+{
+  "name": "@genvid/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "m0-render": "tsx cli.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@genvid/db": "workspace:*",
+    "@genvid/pipeline": "workspace:*",
+    "@genvid/prompts": "workspace:^",
+    "@genvid/providers": "workspace:^",
+    "@genvid/render-workers": "workspace:^",
+    "@genvid/schemas": "workspace:*",
+    "@hono/node-server": "^1.14.0",
+    "dotenv": "^18.0.2",
+    "hono": "^4.7.0",
+    "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.23.15"
+  }
+}

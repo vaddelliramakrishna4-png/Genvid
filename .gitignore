@@ -1,0 +1,83 @@
+# ─── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+
+# ─── Build outputs ───────────────────────────────────────────────────────────
+.next/
+out/
+dist/
+build/
+.turbo/
+
+# ─── Environment / Secrets ───────────────────────────────────────────────────
+# NEVER commit API keys, Supabase credentials, Gemini keys, Pexels tokens, etc.
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+*.env
+
+# ─── Vercel / Deployment ─────────────────────────────────────────────────────
+.vercel/
+.netlify/
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── Runtime / Temp generation artifacts ─────────────────────────────────────
+# Generated videos, audio, and subtitle files produced during pipeline runs
+.run/
+*.mp4
+*.wav
+*.ass
+*.srt
+test_tts.wav
+test_subs.ass
+test_script.txt
+
+# ─── Python virtual environment ──────────────────────────────────────────────
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.Python
+
+# ─── OS-specific ─────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ─── Editor / IDE ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.suo
+*.user
+.history/
+
+# ─── Testing / Coverage ──────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ─── Miscellaneous test/debug scripts ────────────────────────────────────────
+test-api.js
+test-db.ts
+setup-db.ts

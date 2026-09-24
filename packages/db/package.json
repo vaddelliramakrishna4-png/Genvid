@@ -1,0 +1,17 @@
+{
+  "name": "@genvid/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "types": "index.ts",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.0",
+    "drizzle-orm": "^0.44.0",
+    "postgres": "^3.4.0",
+    "dotenv": "^18.0.2"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.0",
+    "typescript": "^5.0.0"
+  }
+}
