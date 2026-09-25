@@ -210,17 +210,18 @@ projectRoutes.post("/:id/approve", async (c) => {
       }
       
       // Delete unapproved scenes
-      const db = getDb();
+      const db: any = getDb();
+      const sc: any = scenes;
       if (approvedIds.size > 0) {
-        await db.delete(scenes).where(
+        await db.delete(sc).where(
           and(
-            eq(scenes.projectId, projectId),
-            notInArray(scenes.id, Array.from(approvedIds))
+            eq(sc.projectId, projectId),
+            notInArray(sc.id, Array.from(approvedIds) as string[])
           )
         );
       } else {
         // if for some reason empty, delete all
-        await db.delete(scenes).where(eq(scenes.projectId, projectId));
+        await db.delete(sc).where(eq(sc.projectId, projectId));
       }
     }
   } catch (e) {

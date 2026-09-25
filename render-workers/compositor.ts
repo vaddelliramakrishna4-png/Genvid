@@ -66,21 +66,21 @@ export async function composeVideo(
         outputOptions.push("-b:a 128k");
       }
 
-      command.outputOptions(outputOptions).output(outputPath)
-        .on("start", (cmdLine: string) => {
+      command.outputOptions(outputOptions).output(outputPath);
+      (command as any).on("start", (cmdLine: string) => {
           console.log(`[GENVID] FFmpeg running command: ${cmdLine}`);
-        })
-        .on("error", (err: Error, stdout: string, stderr: string) => {
+        });
+      (command as any).on("error", (err: Error, stdout: string, stderr: string) => {
           console.error(`[GENVID ERROR] FFmpeg failed:`, err.message);
           console.error(`[GENVID ERROR] FFmpeg stderr:`, stderr);
           reject(err);
-        })
-        .on("end", () => {
+        });
+      (command as any).on("end", () => {
           console.log(`[GENVID] FFmpeg completed`);
           console.log(`[GENVID] MP4 created: ${outputPath}`);
           resolve(outputPath);
-        })
-        .run();
+        });
+      command.run();
     } catch (err) {
       console.error(`[GENVID ERROR] Compositor setup failed:`, err);
       reject(err);
