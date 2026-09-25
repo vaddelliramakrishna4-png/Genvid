@@ -83,17 +83,27 @@ projectRoutes.post("/", async (c) => {
     
     // Trigger the real pipeline asynchronously in the background using Vercel's waitUntil
     // This allows the response to return quickly without 504 timeouts.
-    waitUntil(
-      (async () => {
-        console.log(`[GENERATION] Starting pipeline: ${project.id}`);
-        try {
-          await generateStoryboardForProject(project.id);
-        } catch (err: any) {
+    try {
+      waitUntil(
+        (async () => {
+          console.log(`[GENERATION] Starting pipeline: ${project.id}`);
+          try {
+            await generateStoryboardForProject(project.id);
+          } catch (err: any) {
+            console.error(`[GENVID ERROR] Pipeline failed for project ${project.id}:`, err);
+            await updateProjectStatus(project.id, "failed", { errorMessage: err.message || String(err) });
+          }
+        })()
+      );
+    } catch (e) {
+      // Fallback for local environments where waitUntil might fail
+      setTimeout(() => {
+        generateStoryboardForProject(project.id).catch(err => {
           console.error(`[GENVID ERROR] Pipeline failed for project ${project.id}:`, err);
-          await updateProjectStatus(project.id, "failed", { errorMessage: err.message || String(err) });
-        }
-      })()
-    );
+          updateProjectStatus(project.id, "failed", { errorMessage: err.message || String(err) });
+        });
+      }, 0);
+    }
 
     return c.json({ success: true, project }, 201);
   } catch (err: any) {
@@ -236,17 +246,26 @@ projectRoutes.post("/:id/approve", async (c) => {
   // Update status to starting render
   await updateProjectStatus(projectId, "generating_voice", { progress: 45 });
 
-  waitUntil(
-    (async () => {
-      console.log(`[RENDER] Starting render for approved project: ${project.id}`);
-      try {
-        await renderVideoForProject(project.id);
-      } catch (err: any) {
+  try {
+    waitUntil(
+      (async () => {
+        console.log(`[RENDER] Starting render for approved project: ${project.id}`);
+        try {
+          await renderVideoForProject(project.id);
+        } catch (err: any) {
+          console.error(`[GENVID ERROR] Render failed for project ${project.id}:`, err);
+          await updateProjectStatus(project.id, "failed", { errorMessage: err.message || String(err) });
+        }
+      })()
+    );
+  } catch (e) {
+    setTimeout(() => {
+      renderVideoForProject(project.id).catch(err => {
         console.error(`[GENVID ERROR] Render failed for project ${project.id}:`, err);
-        await updateProjectStatus(project.id, "failed", { errorMessage: err.message || String(err) });
-      }
-    })()
-  );
+        updateProjectStatus(project.id, "failed", { errorMessage: err.message || String(err) });
+      });
+    }, 0);
+  }
 
   return c.json({ success: true });
 });

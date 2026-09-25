@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: genvid-api
+    env: docker
+    plan: standard # We recommend standard for 2GB+ memory required by PyTorch
+    region: ohio
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      # IMPORTANT: You must copy your other environment variables 
+      # from .env.local (like GEMINI_API_KEY, SUPABASE_URL, etc.)
+      # into the Render dashboard!

@@ -16,10 +16,11 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
   },
   async rewrites() {
+    const apiDest = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? "https://genvid-api.vercel.app" : "http://127.0.0.1:3001");
     return [
       {
         source: "/api/:path*",
-        destination: "http://127.0.0.1:3001/api/:path*",
+        destination: `${apiDest}/api/:path*`,
       },
     ];
   },

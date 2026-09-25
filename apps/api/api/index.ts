@@ -1,5 +1,7 @@
 import { handle } from 'hono/vercel';
 
+export const maxDuration = 300; // Allow maximum execution time for background render tasks
+
 export default async function(req: Request) {
   try {
     const { default: app } = await import('../src/index');
