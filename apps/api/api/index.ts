@@ -1,4 +1,18 @@
 import { handle } from 'hono/vercel';
-import app from '../src/index';
 
-export default handle(app);
+export default async function(req: Request) {
+  try {
+    const { default: app } = await import('../src/index');
+    const handler = handle(app);
+    return await handler(req);
+  } catch (e: any) {
+    return new Response(JSON.stringify({ 
+      error: "FATAL_INIT_ERROR", 
+      message: e?.message,
+      stack: e?.stack 
+    }), { 
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+}
