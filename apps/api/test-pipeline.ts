@@ -1,6 +1,6 @@
 import { GeminiProvider, PexelsProvider } from "@genvid/providers";
 import { buildSystemPrompt } from "@genvid/prompts";
-import { composeVideo } from "../../render-workers/compositor";
+import { composeVideo } from "@genvid/render-workers";
 import fs from "fs/promises";
 import path from "path";
 import dotenv from "dotenv";
