@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { login, signup } from "./actions";
 import { useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   const [isLogin, setIsLogin] = useState(true);
@@ -99,6 +99,7 @@ export default function LoginPage() {
           {isLogin ? "Don't have an account? " : "Already have an account? "}
           <button
             onClick={() => setIsLogin(!isLogin)}
+            type="button"
             style={{ background: "none", border: "none", color: "var(--accent-violet)", fontWeight: 600, cursor: "pointer" }}
           >
             {isLogin ? "Sign up" : "Sign in"}
@@ -107,5 +108,17 @@ export default function LoginPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        Loading...
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

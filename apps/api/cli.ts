@@ -1,4 +1,4 @@
-import { executePipelineForProject } from "@genvid/pipeline";
+import { generateStoryboardForProject, renderVideoForProject } from "@genvid/pipeline";
 import { createProject } from "@genvid/db";
 import path from "path";
 import * as dotenv from "dotenv";
@@ -26,7 +26,11 @@ async function main() {
       queuedAt: new Date(),
     });
 
-    const outPath = await executePipelineForProject(project.id);
+    console.log("Generating storyboard...");
+    await generateStoryboardForProject(project.id);
+    
+    console.log("Rendering video...");
+    const outPath = await renderVideoForProject(project.id);
     console.log(`Render completed! MP4 output at: ${outPath}`);
   } catch (err) {
     console.error("Pipeline failed:", err);

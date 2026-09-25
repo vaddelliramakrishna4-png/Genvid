@@ -1,5 +1,5 @@
 import { createProject } from "@genvid/db";
-import { executePipelineForProject } from "@genvid/pipeline";
+import { generateStoryboardForProject, renderVideoForProject } from "./index";
 import * as dotenv from "dotenv";
 import path from "path";
 
@@ -26,7 +26,11 @@ async function run() {
   console.log("Project created:", project.id);
   
   try {
-    const url = await executePipelineForProject(project.id);
+    console.log("Generating storyboard...");
+    await generateStoryboardForProject(project.id);
+    
+    console.log("Rendering video...");
+    const url = await renderVideoForProject(project.id);
     console.log("SUCCESS! Video available at:", url);
   } catch (err: any) {
     console.error("FAIL:", err.message);
