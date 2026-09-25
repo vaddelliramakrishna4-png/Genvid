@@ -240,7 +240,7 @@ export async function renderVideoForProject(projectId: string): Promise<string> 
     const bucketName = "videos";
     
     const { data: buckets } = await supabase.storage.listBuckets();
-    if (!buckets?.find(b => b.name === bucketName)) {
+    if (!buckets?.find((b: any) => b.name === bucketName)) {
       await supabase.storage.createBucket(bucketName, { public: true });
     }
 
