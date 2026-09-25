@@ -14,7 +14,8 @@ import fs from "fs/promises";
 import path from "path";
 
 export async function generateStoryboardForProject(projectId: string): Promise<void> {
-  const outputDir = path.join(process.cwd(), ".run", projectId);
+  const baseDir = process.env.VERCEL ? "/tmp" : process.cwd();
+  const outputDir = path.join(baseDir, ".run", projectId);
   await fs.mkdir(outputDir, { recursive: true });
 
   const project = await getProject(projectId);
@@ -144,7 +145,8 @@ export async function generateStoryboardForProject(projectId: string): Promise<v
 }
 
 export async function renderVideoForProject(projectId: string): Promise<string> {
-  const outputDir = path.join(process.cwd(), ".run", projectId);
+  const baseDir = process.env.VERCEL ? "/tmp" : process.cwd();
+  const outputDir = path.join(baseDir, ".run", projectId);
   await fs.mkdir(outputDir, { recursive: true });
 
   const project = await getProject(projectId);
@@ -167,11 +169,19 @@ export async function renderVideoForProject(projectId: string): Promise<string> 
     const scriptPath = path.join(outputDir, "script.txt");
     await fs.writeFile(scriptPath, fullNarration);
     
-    // Use the dedicated venv Python executable
-    const pythonExe = path.join(process.cwd(), "..", "..", ".venv", "Scripts", "python.exe");
+    // Use system python in production, or local venv in dev
+    const pythonExe = process.env.VERCEL ? "python3" : path.join(process.cwd(), "..", "..", ".venv", "Scripts", "python.exe");
 
     // Run TTS
-    const ttsScript = path.join(__dirname, "../../render-workers/tts.py");
+    // Use dynamic resolution to find the scripts from the render-workers package
+    // (We also force Vercel NFT to trace these files by doing a static require.resolve)
+    try { require.resolve("@genvid/render-workers/tts.py"); } catch(e) {}
+    try { require.resolve("@genvid/render-workers/align.py"); } catch(e) {}
+    
+    const renderWorkersPkg = require.resolve("@genvid/render-workers/package.json");
+    const renderWorkersDir = path.dirname(renderWorkersPkg);
+    
+    const ttsScript = path.join(renderWorkersDir, "tts.py");
     await execAsync(`"${pythonExe}" "${ttsScript}" "${fullNarration}" "${audioOutPath}"`);
     console.log("Voice generated at:", audioOutPath);
     await createRenderJob({ projectId, step: "tts", status: "completed", completedAt: new Date() });
@@ -181,7 +191,7 @@ export async function renderVideoForProject(projectId: string): Promise<string> 
     
     // Run Alignment
     const subtitlesPath = path.join(outputDir, "subtitles.ass");
-    const alignScript = path.join(__dirname, "../../render-workers/align.py");
+    const alignScript = path.join(renderWorkersDir, "align.py");
     await execAsync(`"${pythonExe}" "${alignScript}" "${audioOutPath}" "${scriptPath}" "${subtitlesPath}"`);
     console.log("Subtitles generated at:", subtitlesPath);
     await createRenderJob({ projectId, step: "alignment", status: "completed", completedAt: new Date() });

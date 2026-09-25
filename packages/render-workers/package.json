@@ -9,7 +9,10 @@
       "require": "./dist/compositor.js",
       "import": "./dist/compositor.js",
       "types": "./dist/compositor.d.ts"
-    }
+    },
+    "./package.json": "./package.json",
+    "./tts.py": "./tts.py",
+    "./align.py": "./align.py"
   },
   "scripts": {
     "build": "tsc"
