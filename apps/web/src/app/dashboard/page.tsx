@@ -15,15 +15,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     function updateGreeting() {
-      const formatter = new Intl.DateTimeFormat("en-US", {
-        hour: "numeric",
-        hour12: false,
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      });
-      const hour = parseInt(formatter.format(new Date()), 10);
+      const hour = new Date().getHours();
       
       let newGreeting = "Good evening";
-      if (hour >= 5 && hour < 12) newGreeting = "Good morning";
+      if (hour >= 0 && hour < 12) newGreeting = "Good morning";
       else if (hour >= 12 && hour < 17) newGreeting = "Good afternoon";
       else if (hour >= 17 && hour < 21) newGreeting = "Good evening";
       else newGreeting = "Good night";
@@ -198,7 +193,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── FAB ────────────────────────────────────────────────────────────── */}
-      <div style={{ position: "fixed", bottom: "calc(88px + var(--safe-area-bottom))", width: "100%", maxWidth: "430px", pointerEvents: "none", zIndex: 40, right: "auto", left: "auto" }}>
+      <div style={{ position: "absolute", bottom: "calc(88px + var(--safe-area-bottom))", width: "100%", maxWidth: "430px", pointerEvents: "none", zIndex: 40, right: "0", left: "0" }}>
         <div 
           onClick={() => router.push("/create")}
           style={{

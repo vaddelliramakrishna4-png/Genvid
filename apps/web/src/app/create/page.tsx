@@ -136,7 +136,7 @@ export default function CreatePage() {
       </div>
 
       {/* ── Configuration List ───────────────────────────────────────────── */}
-      <label className="card-dark" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 14px", marginBottom: "9px", fontSize: "12.5px", cursor: "pointer" }}>
+      <label className="card-dark" style={{ border: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 14px", marginBottom: "9px", fontSize: "12.5px", cursor: "pointer" }}>
         <b style={{ fontWeight: 600 }}>Duration</b>
         <select 
           value={duration} 
@@ -147,7 +147,7 @@ export default function CreatePage() {
         </select>
       </label>
 
-      <label className="card-dark" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 14px", marginBottom: "9px", fontSize: "12.5px", cursor: "pointer" }}>
+      <label className="card-dark" style={{ border: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 14px", marginBottom: "9px", fontSize: "12.5px", cursor: "pointer" }}>
         <b style={{ fontWeight: 600 }}>Character</b>
         <select 
           value={character} 
@@ -158,7 +158,7 @@ export default function CreatePage() {
         </select>
       </label>
 
-      <label className="card-dark" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 14px", marginBottom: "9px", fontSize: "12.5px", cursor: "pointer" }}>
+      <label className="card-dark" style={{ border: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 14px", marginBottom: "9px", fontSize: "12.5px", cursor: "pointer" }}>
         <b style={{ fontWeight: 600 }}>Business</b>
         <select 
           value={business} 
@@ -169,7 +169,7 @@ export default function CreatePage() {
         </select>
       </label>
 
-      <label className="card-dark" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 14px", marginBottom: "22px", fontSize: "12.5px", cursor: "pointer" }}>
+      <label className="card-dark" style={{ border: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 14px", marginBottom: "22px", fontSize: "12.5px", cursor: "pointer" }}>
         <b style={{ fontWeight: 600 }}>Voice</b>
         <select 
           value={voice} 

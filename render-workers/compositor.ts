@@ -23,9 +23,9 @@ export async function composeVideo(
       // Add inputs and build basic concat filter
       for (const scene of manifest.scenes) {
         if (!scene.mediaUrl) continue;
-        command.input(scene.mediaUrl);
-        // Force inputs to 9:16 and standard framerate for safe concatenation
-        filterComplex += `[${inputIndex}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${inputIndex}];`;
+        command.input(scene.mediaUrl).inputOptions(['-stream_loop', '-1']);
+        // Force inputs to 9:16, apply exact duration trim, reset timestamps, and standardize framerate
+        filterComplex += `[${inputIndex}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,trim=duration=${scene.duration},setpts=PTS-STARTPTS,setsar=1,fps=30[v${inputIndex}];`;
         inputs.push(`[v${inputIndex}]`);
         inputIndex++;
       }
@@ -64,7 +64,6 @@ export async function composeVideo(
         outputOptions.push(`-map ${mapA}`);
         outputOptions.push("-c:a aac");
         outputOptions.push("-b:a 128k");
-        outputOptions.push("-shortest"); // end video when audio ends (or vice-versa)
       }
 
       command.outputOptions(outputOptions).output(outputPath)

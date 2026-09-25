@@ -33,6 +33,8 @@ async function testPipeline() {
       projectId,
       mode: "idea",
       input,
+      businessProfileId: null,
+      characterId: null,
       spec: spec as any,
     });
 
@@ -43,6 +45,8 @@ async function testPipeline() {
           projectId,
           mode: "idea",
           input,
+          businessProfileId: null,
+          characterId: null,
           spec: spec as any,
         },
         systemPrompt

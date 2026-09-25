@@ -25,10 +25,13 @@ export const projectStatusEnum = pgEnum("project_status", [
   "draft",
   "queued",
   "generating_script",
+  "storyboard",
   "generating_media",
   "generating_voice",
   "aligning",
+  "mixing",
   "compositing",
+  "uploading",
   "completed",
   "failed",
   "cancelled",
@@ -44,6 +47,7 @@ export const renderStepEnum = pgEnum("render_step", [
 
 export const assetTypeEnum = pgEnum("asset_type", [
   "scene_image",
+  "scene_video",
   "scene_audio",
   "merged_audio",
   "subtitles_ass",

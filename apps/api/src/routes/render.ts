@@ -8,7 +8,7 @@ import {
   updateRenderJob,
   createAsset,
   getProject,
-  getScenes,
+  getScenesByProject,
 } from "@genvid/db";
 import { GeminiProvider, PexelsProvider } from "@genvid/providers";
 import { buildSystemPrompt } from "@genvid/prompts";
@@ -174,7 +174,7 @@ renderRoutes.post("/run/:projectId", async (c) => {
     const outPath = path.join(outputDir, "final.mp4");
     
     // Re-fetch scenes from DB to get the updated imageUrls
-    const finalScenes = await getScenes(projectId);
+    const finalScenes = await getScenesByProject(projectId);
     
     const manifest = {
       projectId,

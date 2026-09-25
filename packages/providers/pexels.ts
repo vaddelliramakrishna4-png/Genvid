@@ -12,7 +12,7 @@ export class PexelsProvider implements VideoAssetProvider {
 
   private usedVideoIds = new Set<number>();
 
-  async searchVideo(query: string, orientation: "landscape" | "portrait" | "square" = "portrait"): Promise<string | null> {
+  async searchVideo(query: string, orientation: "landscape" | "portrait" | "square" = "portrait", minDuration: number = 0): Promise<string | null> {
     try {
       // Pexels API video search
       const response = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&orientation=${orientation}&per_page=15`, {
@@ -29,10 +29,16 @@ export class PexelsProvider implements VideoAssetProvider {
       const data = await response.json();
       
       if (data.videos && data.videos.length > 0) {
-        // Find the best quality video file from the first UNUSED result
-        let video = data.videos.find((v: any) => !this.usedVideoIds.has(v.id));
+        // Find the best quality video file from the first UNUSED result that is LONG ENOUGH
+        let video = data.videos.find((v: any) => !this.usedVideoIds.has(v.id) && v.duration >= minDuration);
+        
         if (!video) {
-          // If all 15 results are used (rare), fallback to random or first
+          // Fallback 1: Any unused video regardless of duration (we'll have to loop it later)
+          video = data.videos.find((v: any) => !this.usedVideoIds.has(v.id));
+        }
+        
+        if (!video) {
+          // Fallback 2: Re-use a video if all 15 are used (rare)
           video = data.videos[Math.floor(Math.random() * data.videos.length)];
         }
         
