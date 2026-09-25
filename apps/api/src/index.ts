@@ -5,7 +5,13 @@ import { serve } from "@hono/node-server";
 import * as dotenv from "dotenv";
 import path from "path";
 
-dotenv.config({ path: path.resolve(__dirname, "../../web/.env.local") });
+if (!process.env.VERCEL) {
+  try {
+    dotenv.config({ path: path.resolve(__dirname, "../../web/.env.local") });
+  } catch (e) {
+    console.warn("Could not load dotenv:", e);
+  }
+}
 
 import { projectRoutes } from "./routes/projects";
 import { galleryRoutes } from "./routes/gallery";
