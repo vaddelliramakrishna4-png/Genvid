@@ -7,7 +7,12 @@ import { FolderOpen, Clapperboard, Users, CircleUserRound } from "lucide-react";
 export default function BottomNav() {
   const pathname = usePathname();
 
-  if (pathname === "/login" || pathname === "/signup" || pathname === "/") {
+  if (
+    pathname === "/login" || 
+    pathname === "/signup" || 
+    pathname === "/" ||
+    pathname?.startsWith("/project/")
+  ) {
     return null;
   }
 
@@ -23,7 +28,7 @@ export default function BottomNav() {
         alignItems: "flex-start",
         justifyContent: "space-around",
         paddingTop: "10px",
-        paddingBottom: "calc(18px + var(--safe-area-bottom))",
+        paddingBottom: "calc(28px + var(--safe-area-bottom))",
         position: "fixed",
         bottom: 0,
         left: 0,
