@@ -72,6 +72,13 @@ projectRoutes.post("/", async (c) => {
 
     console.log(`[CREATE] Project created and queued: ${project.id}`);
     
+    // Trigger the background render pipeline asynchronously
+    const port = process.env.PORT || 3001;
+    const renderUrl = `http://127.0.0.1:${port}/api/v1/render/run/${project.id}`;
+    fetch(renderUrl, { method: "POST" })
+      .then(res => console.log(`[BACKGROUND RENDER] Triggered for ${project.id}, status: ${res.status}`))
+      .catch(err => console.error(`[BACKGROUND RENDER] Failed to trigger for ${project.id}:`, err));
+
     return c.json({ success: true, project }, 201);
   } catch (err: any) {
     console.error("Route Error:", err);
