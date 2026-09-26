@@ -1,7 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 
 export default function ProjectPage() {
@@ -10,10 +14,17 @@ export default function ProjectPage() {
   const [project, setProject] = useState<any>(null);
   const [scenes, setScenes] = useState<any[]>([]);
   const [selectedIndexes, setSelectedIndexes] = useState<Set<number>>(new Set());
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const isEditing = searchParams?.get("edit") === "true";
+  const [editTitle, setEditTitle] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
   const supabase = createClient();
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+
 
     if (projectId.startsWith("prj_")) {
       // Mock project fallback
@@ -40,23 +51,26 @@ export default function ProjectPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setProject(data.project);
-        setScenes(data.project.scenes || []);
-        if (selectedIndexes.size === 0 && data.project.scenes?.length > 0) {
-          setSelectedIndexes(new Set(data.project.scenes.map((_: any, i: number) => i)));
+        if (data.project) {
+          setProject(data.project);
+          if (!editTitle && isEditing) setEditTitle(data.project.title || "");
+          setScenes(data.project.scenes || []);
+          if (selectedIndexes.size === 0 && data.project.scenes?.length > 0) {
+            setSelectedIndexes(new Set(data.project.scenes.map((_: any, i: number) => i)));
+          }
         }
       }
     };
 
     fetchProject();
-    interval = setInterval(fetchProject, 3000); // Poll every 3 seconds
+    const interval = setInterval(fetchProject, 3000); // Poll every 3 seconds
 
     return () => clearInterval(interval);
   }, [projectId, supabase]);
 
   // Determine which UI state to show based on DB status
   const isStoryboard = project ? ["draft", "queued", "generating_script", "generating_media", "storyboard"].includes(project.status) : false;
-  const isRendering = project ? ["generating_voice", "aligning", "compositing", "rendering"].includes(project.status) : false;
+  const isRendering = project ? ["generating_voice", "aligning", "compositing", "rendering", "uploading"].includes(project.status) : false;
   const isCompleted = project ? project.status === "completed" : false;
   const isFailed = project ? project.status === "failed" : false;
 
@@ -85,6 +99,69 @@ export default function ProjectPage() {
       });
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleNewTake = async () => {
+    // Regenerate whole project by setting to queued
+    setProject({ ...project, status: "queued", progress: 0 });
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await fetch(`/api/v1/projects/${projectId}/regenerate`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${session.access_token}` },
+    });
+  };
+
+  const handleEditScenes = async () => {
+    // Reopen storyboard
+    setProject({ ...project, status: "storyboard" });
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await fetch(`/api/v1/projects/${projectId}`, {
+      method: "PUT",
+      headers: { "Authorization": `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "storyboard" })
+    });
+  };
+
+  const handlePostLater = async () => {
+    if (!scheduleDate) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    
+    const res = await fetch(`/api/v1/projects/${projectId}/schedule`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ scheduledAt: scheduleDate })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      setProject(data.project);
+      setShowScheduleModal(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    setIsSavingEdit(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const res = await fetch(`/api/v1/projects/${projectId}`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editTitle })
+      });
+      if (res.ok) {
+        setProject({ ...project, title: editTitle });
+        router.push(`/project/${projectId}`);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -340,8 +417,8 @@ export default function ProjectPage() {
     <div className="animate-fade-in" style={{ flex: 1, display: "flex", flexDirection: "column", padding: "24px 20px 100px" }}>
       
       <header style={{ marginBottom: "14px" }}>
-        <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--success)", letterSpacing: "1px", marginBottom: "4px" }}>
-          ✓ READY TO POST · {project.durationSec} s · ~8.2 MB
+        <div style={{ fontSize: "10px", fontWeight: 700, color: project.scheduleStatus === 'scheduled' ? 'var(--accent-violet)' : "var(--success)", letterSpacing: "1px", marginBottom: "4px" }}>
+          {project.scheduleStatus === 'scheduled' ? `✓ SCHEDULED FOR ${new Date(project.scheduledAt).toLocaleString()}` : "✓ READY TO POST"} · {project.durationSec} s · ~8.2 MB
         </div>
         <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700 }}>
           {project.title || "Untitled Video"}
@@ -417,11 +494,75 @@ export default function ProjectPage() {
       </div>
 
       <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
-        <div className="btn-pill" style={{ flex: 1, display: "flex", justifyContent: "center", fontSize: "11px", fontWeight: 600 }}>↺ New take</div>
-        <div className="btn-pill" style={{ flex: 1, display: "flex", justifyContent: "center", fontSize: "11px", fontWeight: 600 }}>✎ Edit scenes</div>
-        <div className="btn-pill" style={{ flex: 1, display: "flex", justifyContent: "center", fontSize: "11px", fontWeight: 600 }}>⚡ Post later</div>
+        <div className="btn-pill" style={{ flex: 1, display: "flex", justifyContent: "center", fontSize: "11px", fontWeight: 600, cursor: "pointer" }} onClick={handleNewTake}>↺ New take</div>
+        <div className="btn-pill" style={{ flex: 1, display: "flex", justifyContent: "center", fontSize: "11px", fontWeight: 600, cursor: "pointer" }} onClick={handleEditScenes}>✎ Edit scenes</div>
+        <div className="btn-pill" style={{ flex: 1, display: "flex", justifyContent: "center", fontSize: "11px", fontWeight: 600, cursor: "pointer" }} onClick={() => setShowScheduleModal(true)}>⚡ Post later</div>
       </div>
 
+      {showScheduleModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div className="card-dark" style={{ width: "100%", maxWidth: "340px", padding: "24px", borderRadius: "16px", border: "1px solid var(--border-subtle)" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "12px", color: "var(--text-primary)" }}>Schedule Post</h3>
+            <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginBottom: "16px" }}>Select a date and time to post this video automatically.</p>
+            
+            <input 
+              type="datetime-local" 
+              value={scheduleDate}
+              onChange={(e) => setScheduleDate(e.target.value)}
+              style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", marginBottom: "20px" }}
+            />
+            
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+              <button 
+                onClick={() => setShowScheduleModal(false)}
+                style={{ padding: "10px 16px", borderRadius: "8px", background: "transparent", color: "var(--text-primary)", fontSize: "14px", fontWeight: 600, border: "none", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handlePostLater}
+                disabled={!scheduleDate}
+                style={{ padding: "10px 16px", borderRadius: "8px", background: "var(--accent-gradient)", color: "#fff", fontSize: "14px", fontWeight: 600, border: "none", cursor: "pointer", opacity: scheduleDate ? 1 : 0.5 }}
+              >
+                Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {isEditing && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div className="card-dark" style={{ width: "100%", maxWidth: "340px", padding: "24px", borderRadius: "16px", border: "1px solid var(--border-subtle)" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "12px", color: "var(--text-primary)" }}>Edit Project</h3>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "8px", display: "block" }}>Project Title</label>
+              <input 
+                type="text" 
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+              <button 
+                onClick={() => router.push(`/project/${projectId}`)}
+                style={{ padding: "10px 16px", borderRadius: "8px", background: "transparent", color: "var(--text-primary)", fontSize: "14px", fontWeight: 600, border: "none", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveEdit}
+                disabled={isSavingEdit}
+                style={{ padding: "10px 16px", borderRadius: "8px", background: "var(--accent-gradient)", color: "#fff", fontSize: "14px", fontWeight: 600, border: "none", cursor: "pointer" }}
+              >
+                {isSavingEdit ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
@@ -25,11 +26,31 @@ export default function CreatePage() {
   const voices = ["Indian English · calm ⏵", "US English · energetic ⏵", "UK English · pro ⏵"];
 
   const handleCreate = async () => {
+    if (isSubmitting) return;
     const finalIdea = idea.trim() || "A cat slowly turns to find a cucumber behind it, eyes widening...";
     setIsSubmitting(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
+      const durationValues = [15, 30, 60];
+      const voiceKeys = ["en-IN-calm-male", "en-US-energetic", "en-GB-pro"];
+      
+      const payload: any = {
+        inputText: finalIdea,
+        styleKey: style.toLowerCase(),
+        mode: tab === "idea" ? "idea" : "verbatim_script",
+        durationSec: durationValues[duration] || 15,
+        voiceKey: voiceKeys[voice] || "en-IN-calm-male"
+      };
+
+      if (business !== 2) { // 2 is "None"
+        payload.businessProfileId = `mock_biz_${business}`; // We don't have real IDs in this mockup yet
+      }
+
+      if (character !== 2) {
+        payload.characterId = `mock_char_${character}`;
+      }
+
       const res = await fetch(`/api/v1/projects`, {
         method: "POST",
         credentials: "include",
@@ -37,13 +58,7 @@ export default function CreatePage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({
-          inputText: finalIdea,
-          styleKey: style,
-          mode: tab === "idea" ? "idea" : "verbatim_script",
-          durationSec: parseInt(durations[duration]),
-          voiceKey: voices[voice]
-        })
+        body: JSON.stringify(payload)
       });
 
       const resText = await res.text();
@@ -64,9 +79,9 @@ export default function CreatePage() {
         console.error("API Error details:", data);
         alert(`Creation failed: ${data?.error || res.statusText || 'Unknown server error'}`);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Network/Fetch error:", err);
-      alert(`Failed to create project: ${err?.message || String(err)}`);
+      alert(`Failed to create project: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -75,13 +90,20 @@ export default function CreatePage() {
   return (
     <div className="animate-fade-in" style={{ padding: "0 20px 100px", flex: 1 }}>
       
-      {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div style={{ fontSize: "10.5px", color: "var(--text-muted)", letterSpacing: ".6px", textTransform: "uppercase", fontWeight: 600, margin: "10px 0 4px" }}>
-        New video
+      {/* ── Fixed Header ──────────────────────────────────────────────────── */}
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, background: "#0A0A0F", padding: "16px 20px 12px", borderBottom: "1px solid var(--border-subtle)" }}>
+        <div style={{ maxWidth: "500px", margin: "0 auto" }}>
+          <div style={{ fontSize: "10.5px", color: "var(--text-muted)", letterSpacing: ".6px", textTransform: "uppercase", fontWeight: 600, margin: "10px 0 4px" }}>
+            New video
+          </div>
+          <div className="font-display" style={{ fontSize: "22px", fontWeight: 700, letterSpacing: "-.3px" }}>
+            What should it say?
+          </div>
+        </div>
       </div>
-      <div className="font-display" style={{ fontSize: "22px", fontWeight: 700, letterSpacing: "-.3px" }}>
-        What should it say?
-      </div>
+      
+      {/* Pad content */}
+      <div style={{ height: "64px" }}></div>
 
       {/* ── Tabs (Segmented Control) ───────────────────────────────────────── */}
       <div style={{ display: "flex", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "12px", padding: "3px", margin: "14px 0" }}>

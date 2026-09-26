@@ -10,6 +10,11 @@
   },
   "devDependencies": {
     "@types/ffprobe-static": "^2.0.3",
+    "@types/pg": "^8.23.1",
+    "dotenv": "^18.0.2",
+    "drizzle-orm": "^0.44.0",
+    "pg": "^8.23.0",
+    "postgres": "^3.4.0",
     "turbo": "^2.0.0",
     "typescript": "^5.0.0"
   },

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -27,11 +28,17 @@ export default function ProfilePage() {
 
   return (
     <div className="animate-fade-in" style={{ padding: "24px 20px 100px", flex: 1 }}>
-      <header style={{ marginBottom: "40px" }}>
-        <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700 }}>
-          Profile
-        </h1>
-      </header>
+      {/* ── Fixed Header ──────────────────────────────────────────────────── */}
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, background: "#0A0A0F", padding: "16px 20px 12px", borderBottom: "1px solid var(--border-subtle)" }}>
+        <div style={{ maxWidth: "500px", margin: "0 auto" }}>
+          <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700, margin: 0 }}>
+            Profile
+          </h1>
+        </div>
+      </div>
+
+      {/* Pad content */}
+      <div style={{ height: "40px" }}></div>
 
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "40px" }}>
         <div

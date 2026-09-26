@@ -132,6 +132,10 @@ export const projects = pgTable(
     // Credits
     creditsCharged: integer("credits_charged").notNull().default(0),
 
+    // Schedule
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+    scheduleStatus: text("schedule_status").notNull().default("draft"),
+
     // Timestamps
     queuedAt: timestamp("queued_at", { withTimezone: true }),
     startedAt: timestamp("started_at", { withTimezone: true }),

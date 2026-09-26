@@ -230,14 +230,31 @@ export async function renderVideoForProject(projectId: string): Promise<string> 
     const ffprobePath = (await import("ffprobe-static")).default.path;
     const { stdout } = await execAsync(`"${ffprobePath}" -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${outPath}"`);
     const actualDuration = parseFloat(stdout.trim());
-    console.log(`Requested duration: ${project.durationSec}s`);
-    console.log(`Actual duration: ${actualDuration.toFixed(1)}s`);
+    const expectedDuration = finalScenes.reduce((acc: number, s: any) => acc + (s.targetDuration || 5), 0);
+    console.log(`Requested project duration: ${project.durationSec}s, Expected from scenes: ${expectedDuration}s`);
+    console.log(`Actual rendered duration: ${actualDuration.toFixed(1)}s`);
     
-    if (Math.abs(actualDuration - project.durationSec) > 1.5) {
-      throw new Error(`Final video duration validation failed. Requested: ${project.durationSec}s, Rendered: ${actualDuration.toFixed(1)}s`);
+    if (Math.abs(actualDuration - expectedDuration) > 1.5) {
+      throw new Error(`Final video duration validation failed. Expected: ${expectedDuration}s, Rendered: ${actualDuration.toFixed(1)}s`);
+    }
+    
+    // STREAM VALIDATION
+    console.log(`[FFMPEG] Verifying streams...`);
+    const { stdout: streamOut } = await execAsync(`"${ffprobePath}" -v error -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "${outPath}"`);
+    const streams = streamOut.trim().split('\n').map(s => s.trim());
+    const hasVideo = streams.includes('video');
+    const hasAudio = streams.includes('audio');
+    
+    console.log(`[FFMPEG] video_stream=${hasVideo}`);
+    console.log(`[FFMPEG] audio_stream=${hasAudio}`);
+    
+    if (!hasVideo || !hasAudio) {
+      throw new Error(`FFmpeg output missing required streams. video_stream=${hasVideo} audio_stream=${hasAudio}`);
     }
 
     console.log(`[STORAGE] Uploading MP4...`);
+    await updateProjectStatus(projectId, "uploading", { progress: 95 });
+
     const { createClient } = await import("@supabase/supabase-js");
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";

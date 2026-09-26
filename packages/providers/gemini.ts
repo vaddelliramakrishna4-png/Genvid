@@ -10,57 +10,27 @@ export class GeminiProvider implements LLMProvider, ImageProvider {
   }
 
   async generateScript(spec: ProjectSpec, systemPrompt: string): Promise<SceneJSON> {
-    const modelsToTry = [
-      "gemini-3.1-flash-lite"
-    ];
+    const modelName = "gemini-3.1-flash-lite";
+    console.log(`[GEMINI] model=${modelName}`);
 
-    let lastError: any = null;
     let responseText = "";
-    
-    let attempt = 0;
-    while (!responseText && attempt < 1) {
-      attempt++;
-      for (const modelName of modelsToTry) {
-        try {
-          const response = await this.ai.models.generateContent({
-            model: modelName,
-            contents: spec.input,
-            config: {
-              systemInstruction: systemPrompt,
-              responseMimeType: "application/json",
-            },
-          });
-          responseText = response.text || "{}";
-          break; // Success
-        } catch (err: any) {
-          console.warn(`[GEMINI] Model ${modelName} failed on attempt ${attempt}:`, err?.message || err);
-          lastError = err;
-        }
-      }
-      if (!responseText) {
-        console.log(`[GEMINI] Attempt ${attempt} failed. Retrying in 10s...`);
-        await new Promise(r => setTimeout(r, 10000));
-      }
+    try {
+      const response = await this.ai.models.generateContent({
+        model: modelName,
+        contents: spec.input,
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json",
+        },
+      });
+      responseText = response.text || "{}";
+    } catch (err: any) {
+      console.error(`[GEMINI ERROR] Model ${modelName} failed:`, err?.message || err);
+      throw err;
     }
 
     if (!responseText) {
-      console.warn(`[GEMINI] All models failed after 5 attempts. Last error: ${lastError?.message}`);
-      console.warn(`[GEMINI] Falling back to local dynamic script generation based on user input.`);
-      
-      const words = spec.input.split(" ").filter(w => w.length > 3);
-      const keywords = words.slice(0, 3).join(" ") || "abstract";
-      
-      return {
-        title: "Dynamic Video",
-        scenes: [
-          {
-            id: 1,
-            narration: spec.input,
-            visual_prompt: `${keywords} high quality cinematic`,
-            target_duration: 6
-          }
-        ]
-      } as any;
+      throw new Error("Gemini returned empty response text");
     }
 
     // Strip markdown formatting if Gemini included it

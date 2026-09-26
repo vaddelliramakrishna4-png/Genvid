@@ -12,10 +12,10 @@ export class PexelsProvider implements VideoAssetProvider {
 
   private usedVideoIds = new Set<number>();
 
-  async searchVideo(query: string, orientation: "landscape" | "portrait" | "square" = "portrait", minDuration: number = 0): Promise<string | null> {
+  async searchVideo(query: string, orientation: "landscape" | "portrait" | "square" = "portrait", minDuration: number = 0, page: number = 1): Promise<string | null> {
     try {
       // Pexels API video search
-      const response = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&orientation=${orientation}&per_page=15`, {
+      const response = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&orientation=${orientation}&per_page=15&page=${page}`, {
         headers: {
           "Authorization": this.apiKey
         }

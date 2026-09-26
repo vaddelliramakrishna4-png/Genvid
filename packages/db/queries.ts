@@ -100,6 +100,21 @@ export async function updateProjectStatus(
   return updated;
 }
 
+export async function updateProject(projectId: string, data: Partial<InferInsertModel<typeof projects>>) {
+  const db = getDb();
+  const [updated] = await db
+    .update(projects)
+    .set(data)
+    .where(eq(projects.id, projectId))
+    .returning();
+  return updated;
+}
+
+export async function deleteProject(projectId: string) {
+  const db = getDb();
+  await db.delete(projects).where(eq(projects.id, projectId));
+}
+
 export async function updateProjectProgress(
   projectId: string,
   progress: number

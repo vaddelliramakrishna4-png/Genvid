@@ -38,9 +38,12 @@ export async function composeVideo(
       let mapA = "";
 
       if (manifest.subtitlesUrl) {
-        // Need to use relative path to avoid drive letter colon escaping issues in FFmpeg
-        const relativeSubPath = path.relative(process.cwd(), manifest.subtitlesUrl).replace(/\\/g, "/");
-        filterComplex += `${inputs.join("")}concat=n=${inputIndex}:v=1:a=0[vconcat];[vconcat]ass='${relativeSubPath}'[outv]`;
+        // Use absolute path and escape Windows drive letter correctly for FFmpeg filters
+        let safeSubPath = manifest.subtitlesUrl.replace(/\\/g, "/");
+        if (safeSubPath.match(/^[a-zA-Z]:/)) {
+          safeSubPath = safeSubPath.replace(/^([a-zA-Z]):/, "$1\\:");
+        }
+        filterComplex += `${inputs.join("")}concat=n=${inputIndex}:v=1:a=0[vconcat];[vconcat]ass='${safeSubPath}'[outv]`;
       } else {
         filterComplex += `${inputs.join("")}concat=n=${inputIndex}:v=1:a=0[outv]`;
       }
