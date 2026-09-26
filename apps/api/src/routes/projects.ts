@@ -282,8 +282,12 @@ projectRoutes.delete("/:id", async (c) => {
       
       // Attempt to delete if outputVideoUrl exists
       if (project.outputVideoUrl) {
-        const { error } = await supabase.storage.from(bucketName).remove([fileName]);
-        if (error) console.error("Storage delete error:", error);
+        const urlParts = project.outputVideoUrl.split("/");
+        const extractedFileName = urlParts[urlParts.length - 1];
+        if (extractedFileName) {
+          const { error } = await supabase.storage.from(bucketName).remove([extractedFileName]);
+          if (error) console.error("Storage delete error:", error);
+        }
       }
       if (project.thumbnailUrl) {
         const thumbName = `${projectId}/thumbnail.jpg`;

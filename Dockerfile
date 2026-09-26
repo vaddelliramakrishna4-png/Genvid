@@ -26,7 +26,7 @@ RUN pnpm install --frozen-lockfile
 # Setup Python virtual environment and install Kokoro dependencies
 RUN python3 -m venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
-RUN pip3 install --no-cache-dir torch numpy soundfile kokoro
+RUN pip3 install --no-cache-dir torch numpy soundfile kokoro faster-whisper
 
 # Copy the rest of the application
 COPY . .

@@ -204,10 +204,12 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
     // ── Step 4: Alignment (faster-whisper) ────────────────────────────────
     await updateProjectStatus(projectId, "aligning", { progress: 70 });
     const subtitlesOutPath = path.join(outputDir, "subtitles.ass");
+    const scriptOutPath = path.join(outputDir, "script.txt");
+    await fs.writeFile(scriptOutPath, fullNarration);
     
     try {
       const alignScript = path.join(process.cwd(), "packages/render-workers/align.py");
-      await execAsync(`python "${alignScript}" "${audioOutPath}" "${subtitlesOutPath}"`);
+      await execAsync(`python "${alignScript}" "${audioOutPath}" "${scriptOutPath}" "${subtitlesOutPath}"`);
     } catch (err) {
       console.warn("Alignment failed", err);
       throw new Error("Alignment failed: " + (err as Error).message);

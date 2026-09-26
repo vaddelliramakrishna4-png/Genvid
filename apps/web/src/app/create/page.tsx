@@ -39,8 +39,10 @@ export default function CreatePage() {
       const durationValues = [15, 30, 60];
       const voiceKeys = ["en-IN-calm-male", "en-US-energetic", "en-GB-pro"];
       
+      const combinedIdea = `${finalIdea}\n\nContext:\n- Business: ${businesses[business]}\n- Character: ${characters[character]}`;
+      
       const payload: any = {
-        inputText: finalIdea,
+        inputText: combinedIdea,
         styleKey: style.toLowerCase(),
         mode: tab === "idea" ? "idea" : "verbatim_script",
         durationSec: durationValues[duration] || 15,
