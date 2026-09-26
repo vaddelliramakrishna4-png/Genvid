@@ -44,8 +44,11 @@ export default function ProjectPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const res = await fetch(`/api/v1/projects/${projectId}`, {
-        headers: { "Authorization": `Bearer ${session.access_token}` },
+      const res = await fetch(`/api/v1/projects/${projectId}?t=${Date.now()}`, {
+        headers: { 
+          "Authorization": `Bearer ${session.access_token}`,
+          "Cache-Control": "no-cache"
+        },
         credentials: "omit"
       });
 

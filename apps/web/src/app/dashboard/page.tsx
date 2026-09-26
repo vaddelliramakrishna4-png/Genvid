@@ -45,10 +45,11 @@ export default function DashboardPage() {
           setUserName(session.user.user_metadata.full_name || session.user.email?.split("@")[0] || "User");
           setAvatarUrl(session.user.user_metadata.avatar_url || null);
           
-          // Fetch projects from API
-          const res = await fetch(`/api/v1/projects`, {
+          // Fetch projects from API with cache buster
+          const res = await fetch(`/api/v1/projects?t=${Date.now()}`, {
             headers: {
-              "Authorization": `Bearer ${session.access_token}`
+              "Authorization": `Bearer ${session.access_token}`,
+              "Cache-Control": "no-cache"
             }
           });
           
