@@ -53,6 +53,12 @@ export async function updateProfile(
 
 export async function createProject(data: NewProject) {
   const db = getDb();
+  
+  // Ensure the user's profile exists to prevent foreign key violations
+  await db.insert(profiles)
+    .values({ id: data.userId })
+    .onConflictDoNothing();
+
   const [project] = await db.insert(projects).values(data).returning();
   return project;
 }
