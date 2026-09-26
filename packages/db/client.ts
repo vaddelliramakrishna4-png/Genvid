@@ -15,7 +15,13 @@ export function getDb() {
     throw new Error("DATABASE_URL is not set");
   }
 
-  const client = postgres(databaseUrl, { prepare: false }); // pgbouncer needs prepare: false
+  const isProd = process.env.NODE_ENV === "production" || process.env.RENDER || process.env.VERCEL;
+  
+  // Force SSL for external Supabase connections (required by Supabase)
+  const client = postgres(databaseUrl, { 
+    prepare: false, 
+    ssl: isProd ? "require" : false 
+  }); 
   _db = drizzle(client, { schema });
   return _db;
 }
