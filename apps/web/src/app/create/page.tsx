@@ -43,13 +43,10 @@ export default function CreatePage() {
         voiceKey: voiceKeys[voice] || "en-IN-calm-male"
       };
 
-      if (business !== 2) { // 2 is "None"
-        payload.businessProfileId = `mock_biz_${business}`; // We don't have real IDs in this mockup yet
-      }
-
-      if (character !== 2) {
-        payload.characterId = `mock_char_${character}`;
-      }
+      // Removed mock_biz and mock_char injection because they are not valid UUIDs 
+      // and do not exist in the database, causing Postgres to crash on insert.
+      // if (business !== 2) { payload.businessProfileId = `mock_biz_${business}`; }
+      // if (character !== 2) { payload.characterId = `mock_char_${character}`; }
 
       const res = await fetch(`/api/v1/projects`, {
         method: "POST",
