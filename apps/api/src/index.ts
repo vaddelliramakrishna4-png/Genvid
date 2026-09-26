@@ -122,11 +122,17 @@ app.get("/health", async (c) => {
 
 app.get("/test-db", async (c) => {
   try {
-    const { getProjectsByUser } = await import("@genvid/db");
+    const { getProjectsByUser, createProject } = await import("@genvid/db");
+    const testProject = await createProject({
+      userId: "a1e3edca-4c39-4a85-b22d-25802365d9fe",
+      inputText: "test project",
+      title: "Test",
+      status: "queued"
+    });
     const projects = await getProjectsByUser("a1e3edca-4c39-4a85-b22d-25802365d9fe", 20, 0);
-    return c.json({ success: true, projects });
+    return c.json({ success: true, testProject, projects });
   } catch (e: any) {
-    return c.json({ success: false, error: e.message, stack: e.stack, cause: e.cause?.message, code: e.code }, 500);
+    return c.json({ success: false, error: e.message, stack: e.stack, cause: e.cause?.message || e.cause, code: e.code }, 500);
   }
 });
 
