@@ -10,7 +10,7 @@ export class GeminiProvider implements LLMProvider, ImageProvider {
   }
 
   async generateScript(spec: ProjectSpec, systemPrompt: string): Promise<SceneJSON> {
-    const modelName = "gemini-3.1-flash-lite";
+    const modelName = "gemini-1.5-flash";
     console.log(`[GEMINI] model=${modelName}`);
 
     let responseText = "";
