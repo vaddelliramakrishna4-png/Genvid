@@ -29,6 +29,13 @@ app.use(
   })
 );
 
+// ─── Global Error Handler ────────────────────────────────────────────────────
+
+app.onError((err, c) => {
+  console.error("[UNHANDLED ERROR]", err.message, err.stack);
+  return c.json({ error: err.message, stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined }, 500);
+});
+
 // ─── Health Check ────────────────────────────────────────────────────────────
 
 app.get("/", (c) => {
@@ -36,6 +43,56 @@ app.get("/", (c) => {
     name: "GenVid API",
     version: "0.1.0",
     status: "running",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ─── Database Health Check ───────────────────────────────────────────────────
+
+app.get("/health", async (c) => {
+  const checks: Record<string, string> = {};
+  
+  // Check env vars exist (never expose values)
+  checks.DATABASE_URL = process.env.DATABASE_URL ? "SET" : "MISSING";
+  checks.SUPABASE_URL = process.env.SUPABASE_URL ? "SET" : "MISSING";
+  checks.SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ? "SET" : "MISSING";
+  checks.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ? "SET" : "MISSING";
+  checks.GEMINI_API_KEY = process.env.GEMINI_API_KEY ? "SET" : "MISSING";
+  checks.PEXELS_API_KEY = process.env.PEXELS_API_KEY ? "SET" : "MISSING";
+  checks.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ? "SET" : "MISSING";
+  checks.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "SET" : "MISSING";
+  
+  // Test database connection
+  let dbStatus = "UNTESTED";
+  let dbError = null;
+  try {
+    const { getDb } = await import("@genvid/db");
+    const db = getDb();
+    const result = await db.execute(require("drizzle-orm").sql`SELECT 1 as ok`);
+    dbStatus = "CONNECTED";
+  } catch (e: any) {
+    dbStatus = "FAILED";
+    dbError = e.message;
+  }
+  
+  // Test Supabase client
+  let supabaseStatus = "UNTESTED";
+  let supabaseError = null;
+  try {
+    const { getSupabase } = await import("@genvid/db");
+    const supabase = getSupabase();
+    supabaseStatus = "INITIALIZED";
+  } catch (e: any) {
+    supabaseStatus = "FAILED";
+    supabaseError = e.message;
+  }
+  
+  return c.json({
+    status: dbStatus === "CONNECTED" ? "healthy" : "unhealthy",
+    env: checks,
+    database: { status: dbStatus, error: dbError },
+    supabase: { status: supabaseStatus, error: supabaseError },
+    node: process.version,
     timestamp: new Date().toISOString(),
   });
 });

@@ -85,22 +85,35 @@ projectRoutes.post("/", async (c) => {
 // ─── GET /projects — List user's projects ────────────────────────────────────
 
 projectRoutes.get("", async (c) => {
-  const userId = c.get("userId");
-  const limit = parseInt(c.req.query("limit") || "20", 10);
-  const offset = parseInt(c.req.query("offset") || "0", 10);
+  try {
+    const userId = c.get("userId");
+    const limit = parseInt(c.req.query("limit") || "20", 10);
+    const offset = parseInt(c.req.query("offset") || "0", 10);
 
-  const userProjects = await getProjectsByUser(userId, limit, offset);
-  return c.json({ projects: userProjects });
+    console.log(`[GET /projects] userId=${userId}, limit=${limit}, offset=${offset}`);
+    const userProjects = await getProjectsByUser(userId, limit, offset);
+    console.log(`[GET /projects] Found ${userProjects.length} projects`);
+    return c.json({ projects: userProjects });
+  } catch (err: any) {
+    console.error("[GET /projects] ERROR:", err.message, err.stack);
+    return c.json({ error: err.message }, 500);
+  }
 });
 
 projectRoutes.get("/", async (c) => {
-  const userId = c.get("userId");
-  const limit = parseInt(c.req.query("limit") || "20", 10);
-  const offset = parseInt(c.req.query("offset") || "0", 10);
+  try {
+    const userId = c.get("userId");
+    const limit = parseInt(c.req.query("limit") || "20", 10);
+    const offset = parseInt(c.req.query("offset") || "0", 10);
 
-  const userProjects = await getProjectsByUser(userId, limit, offset);
-
-  return c.json({ projects: userProjects });
+    console.log(`[GET /projects/] userId=${userId}, limit=${limit}, offset=${offset}`);
+    const userProjects = await getProjectsByUser(userId, limit, offset);
+    console.log(`[GET /projects/] Found ${userProjects.length} projects`);
+    return c.json({ projects: userProjects });
+  } catch (err: any) {
+    console.error("[GET /projects/] ERROR:", err.message, err.stack);
+    return c.json({ error: err.message }, 500);
+  }
 });
 
 // ─── GET /projects/:id — Get a single project with details ───────────────────
