@@ -210,8 +210,13 @@ export default function ProjectPage() {
         
         {/* Header S3 */}
         <div style={{ padding: "0 20px" }}>
-          <div style={{ fontSize: "10.5px", color: "var(--text-muted)", letterSpacing: ".6px", textTransform: "uppercase", fontWeight: 600, margin: "8px 0 2px" }}>
-            Storyboard
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "8px 0 2px" }}>
+            <div onClick={() => router.push("/dashboard")} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: "24px", height: "24px", borderRadius: "50%", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}>
+              <span style={{ fontSize: "14px" }}>←</span>
+            </div>
+            <div style={{ fontSize: "10.5px", color: "var(--text-muted)", letterSpacing: ".6px", textTransform: "uppercase", fontWeight: 600 }}>
+              Storyboard
+            </div>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div className="font-display" style={{ fontSize: "22px", fontWeight: 700, letterSpacing: "-.3px" }}>
@@ -419,13 +424,18 @@ export default function ProjectPage() {
   return (
     <div className="animate-fade-in" style={{ flex: 1, display: "flex", flexDirection: "column", padding: "24px 20px 100px" }}>
       
-      <header style={{ marginBottom: "14px" }}>
-        <div style={{ fontSize: "10px", fontWeight: 700, color: project.scheduleStatus === 'scheduled' ? 'var(--accent-violet)' : "var(--success)", letterSpacing: "1px", marginBottom: "4px" }}>
-          {project.scheduleStatus === 'scheduled' ? `✓ SCHEDULED FOR ${new Date(project.scheduledAt).toLocaleString()}` : "✓ READY TO POST"} · {project.durationSec} s · ~8.2 MB
+      <header style={{ marginBottom: "14px", display: "flex", alignItems: "flex-start", gap: "12px" }}>
+        <div onClick={() => router.push("/dashboard")} style={{ marginTop: "4px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", flex: "none", borderRadius: "50%", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}>
+          <span style={{ fontSize: "16px" }}>←</span>
         </div>
-        <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700 }}>
-          {project.title || "Untitled Video"}
-        </h1>
+        <div>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: project.scheduleStatus === 'scheduled' ? 'var(--accent-violet)' : "var(--success)", letterSpacing: "1px", marginBottom: "4px" }}>
+            {project.scheduleStatus === 'scheduled' ? `✓ SCHEDULED FOR ${new Date(project.scheduledAt).toLocaleString()}` : "✓ READY TO POST"} · {project.durationSec} s · ~8.2 MB
+          </div>
+          <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700 }}>
+            {project.title || "Untitled Video"}
+          </h1>
+        </div>
       </header>
 
       {/* Video Player styled exactly like the Hi-Fi Mock */}

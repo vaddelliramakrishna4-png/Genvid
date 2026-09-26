@@ -93,12 +93,17 @@ export default function CreatePage() {
       
       {/* ── Fixed Header ──────────────────────────────────────────────────── */}
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, background: "#0A0A0F", padding: "16px 20px 12px", borderBottom: "1px solid var(--border-subtle)" }}>
-        <div style={{ maxWidth: "500px", margin: "0 auto" }}>
-          <div style={{ fontSize: "10.5px", color: "var(--text-muted)", letterSpacing: ".6px", textTransform: "uppercase", fontWeight: 600, margin: "10px 0 4px" }}>
-            New video
+        <div style={{ maxWidth: "500px", margin: "0 auto", display: "flex", alignItems: "center", gap: "12px" }}>
+          <div onClick={() => router.push("/dashboard")} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: "32px", height: "32px", borderRadius: "50%", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}>
+            <span style={{ fontSize: "16px" }}>←</span>
           </div>
-          <div className="font-display" style={{ fontSize: "22px", fontWeight: 700, letterSpacing: "-.3px" }}>
-            What should it say?
+          <div>
+            <div style={{ fontSize: "10.5px", color: "var(--text-muted)", letterSpacing: ".6px", textTransform: "uppercase", fontWeight: 600, margin: "2px 0 2px" }}>
+              New video
+            </div>
+            <div className="font-display" style={{ fontSize: "20px", fontWeight: 700, letterSpacing: "-.3px" }}>
+              What should it say?
+            </div>
           </div>
         </div>
       </div>

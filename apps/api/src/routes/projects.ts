@@ -74,7 +74,7 @@ projectRoutes.post("/", async (c) => {
     
     // Trigger the background render pipeline asynchronously
     const port = process.env.PORT || 3001;
-    const renderUrl = `http://127.0.0.1:${port}/api/v1/render/run/${project.id}`;
+    const renderUrl = `http://127.0.0.1:${port}/api/v1/render/generate-script/${project.id}`;
     fetch(renderUrl, { method: "POST" })
       .then(res => console.log(`[BACKGROUND RENDER] Triggered for ${project.id}, status: ${res.status}`))
       .catch(err => console.error(`[BACKGROUND RENDER] Failed to trigger for ${project.id}:`, err));
@@ -243,6 +243,13 @@ projectRoutes.post("/:id/approve", async (c) => {
   // Update status to signal worker to start rendering
   await updateProjectStatus(projectId, "generating_voice", { progress: 45 });
   console.log(`[APPROVE] Project ${projectId} approved and queued for render`);
+
+  // Trigger the background render media pipeline asynchronously
+  const port = process.env.PORT || 3001;
+  const renderUrl = `http://127.0.0.1:${port}/api/v1/render/render-media/${projectId}`;
+  fetch(renderUrl, { method: "POST" })
+    .then(res => console.log(`[BACKGROUND RENDER MEDIA] Triggered for ${projectId}, status: ${res.status}`))
+    .catch(err => console.error(`[BACKGROUND RENDER MEDIA] Failed to trigger for ${projectId}:`, err));
 
   return c.json({ success: true });
 });
