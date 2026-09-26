@@ -1,0 +1,1 @@
+const postgres = require('postgres'); const sql = postgres('postgresql://postgres.chpkxbzkzuxqsnhyvhzb:Ramakrishna%402005.@aws-0-ap-south-1.pooler.supabase.com:6543/postgres', { connect_timeout: 5 }); sql`SELECT 1 as ok`.then(r => { console.log(r); process.exit(0); }).catch(e => { console.error(e); process.exit(1); })
