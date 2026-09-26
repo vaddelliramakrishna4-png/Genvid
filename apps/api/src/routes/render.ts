@@ -17,7 +17,6 @@ import path from "path";
 import fs from "fs/promises";
 import { exec } from "child_process";
 import { promisify } from "util";
-
 const execAsync = promisify(exec);
 
 export const renderRoutes = new Hono();
@@ -183,8 +182,7 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
     const audioOutPath = path.join(outputDir, "audio.wav");
     
     try {
-      // In a real environment, you might need to ensure the python path is correct
-      const ttsScript = path.join(process.cwd(), "packages/render-workers/tts.py");
+      const ttsScript = require.resolve("@genvid/render-workers/tts.py");
       await execAsync(`python "${ttsScript}" "${fullNarration.replace(/"/g, '\\"')}" "${audioOutPath}"`);
     } catch (err) {
       console.warn("TTS failed (maybe kokoro not installed?), using dummy audio for now", err);
@@ -208,7 +206,7 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
     await fs.writeFile(scriptOutPath, fullNarration);
     
     try {
-      const alignScript = path.join(process.cwd(), "packages/render-workers/align.py");
+      const alignScript = require.resolve("@genvid/render-workers/align.py");
       await execAsync(`python "${alignScript}" "${audioOutPath}" "${scriptOutPath}" "${subtitlesOutPath}"`);
     } catch (err) {
       console.warn("Alignment failed", err);
