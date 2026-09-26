@@ -27,7 +27,11 @@ export default function CreatePage() {
 
   const handleCreate = async () => {
     if (isSubmitting) return;
-    const finalIdea = idea.trim() || "A cat slowly turns to find a cucumber behind it, eyes widening...";
+    const finalIdea = idea.trim();
+    if (!finalIdea) {
+      alert("Please enter an idea or script for your video.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -125,7 +129,7 @@ export default function CreatePage() {
         <textarea
           className="input-flat"
           rows={3}
-          placeholder="A cat slowly turns to find a cucumber behind it, eyes widening..."
+          placeholder="Give your idea..."
           style={{ resize: "none", width: "100%", outline: "none", background: "transparent", border: "none", color: "var(--text-primary)", fontFamily: "inherit" }}
           value={idea}
           onChange={(e) => setIdea(e.target.value)}
