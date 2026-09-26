@@ -62,6 +62,24 @@ app.get("/health", async (c) => {
   checks.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ? "SET" : "MISSING";
   checks.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "SET" : "MISSING";
   
+  // Parse DB URL safely
+  let dbUrlParsed = null;
+  try {
+    if (process.env.DATABASE_URL) {
+      const url = new URL(process.env.DATABASE_URL);
+      dbUrlParsed = {
+        protocol: url.protocol,
+        host: url.hostname,
+        port: url.port,
+        username: url.username,
+        hasPassword: !!url.password,
+        pathname: url.pathname
+      };
+    }
+  } catch (e) {
+    dbUrlParsed = "invalid-url-format";
+  }
+
   // Test database connection
   let dbStatus = "UNTESTED";
   let dbError = null;
@@ -73,6 +91,10 @@ app.get("/health", async (c) => {
   } catch (e: any) {
     dbStatus = "FAILED";
     dbError = e.message;
+    if (e.cause) dbError += " | CAUSE: " + e.cause.message;
+    if (e.code) dbError += " | CODE: " + e.code;
+    if (e.detail) dbError += " | DETAIL: " + e.detail;
+    if (e.hint) dbError += " | HINT: " + e.hint;
   }
   
   // Test Supabase client
@@ -90,6 +112,7 @@ app.get("/health", async (c) => {
   return c.json({
     status: dbStatus === "CONNECTED" ? "healthy" : "unhealthy",
     env: checks,
+    dbUrlInfo: dbUrlParsed,
     database: { status: dbStatus, error: dbError },
     supabase: { status: supabaseStatus, error: supabaseError },
     node: process.version,
