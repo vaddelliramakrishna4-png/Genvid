@@ -123,6 +123,10 @@ create table if not exists public.projects (
   -- Credits
   credits_charged integer not null default 0,
 
+  -- Schedule
+  scheduled_at    timestamptz,
+  schedule_status text not null default 'draft',
+
   -- Timestamps
   queued_at       timestamptz,
   started_at      timestamptz,

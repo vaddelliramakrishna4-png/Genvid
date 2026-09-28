@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const supabase = createClient();
 
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   useEffect(() => {
     function updateGreeting() {
@@ -36,6 +37,37 @@ export default function DashboardPage() {
     updateGreeting();
     const interval = setInterval(updateGreeting, 30000); // every 30s
 
+    async function fetchWithRetry(url: string, options: any, maxRetries = 5) {
+      let delay = 1000;
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          const res = await fetch(url, options);
+          if (res.ok) return res;
+          
+          // Only retry on 502, 503, 504 (Server errors/Gateway errors)
+          if ([502, 503, 504].includes(res.status) && i < maxRetries - 1) {
+            setIsReconnecting(true);
+            console.log(`Backend unavailable (${res.status}). Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2; // Exponential backoff
+            continue;
+          }
+          return res; // Return non-retryable error responses (e.g., 400, 401, 500)
+        } catch (err) {
+          // Network errors (e.g., fetch failed)
+          if (i < maxRetries - 1) {
+            setIsReconnecting(true);
+            console.log(`Network error. Retrying in ${delay}ms...`, err);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2;
+            continue;
+          }
+          throw err;
+        }
+      }
+      throw new Error("Max retries reached");
+    }
+
     async function loadData() {
       try {
         const { data: { session }, error: authError } = await supabase.auth.getSession();
@@ -46,14 +78,20 @@ export default function DashboardPage() {
           setAvatarUrl(session.user.user_metadata.avatar_url || null);
           
           // Fetch projects from API with cache buster
-          const res = await fetch(`/api/v1/projects?t=${Date.now()}`, {
+          const res = await fetchWithRetry(`/api/v1/projects?t=${Date.now()}`, {
             headers: {
               "Authorization": `Bearer ${session.access_token}`,
               "Cache-Control": "no-cache"
             }
           });
           
+          setIsReconnecting(false);
+
           if (!res.ok) {
+            if (res.status === 401) {
+              setFetchError("Authentication expired. Please sign in again.");
+              return;
+            }
             const errData = await res.json().catch(() => ({}));
             throw new Error(errData.error || `HTTP error ${res.status}`);
           }
@@ -66,6 +104,7 @@ export default function DashboardPage() {
       } catch (err: any) {
         console.error("Failed to load dashboard data:", err);
         setFetchError(err.message || "Failed to load projects.");
+        setIsReconnecting(false);
       } finally {
         setLoading(false);
       }
@@ -170,7 +209,9 @@ export default function DashboardPage() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>Loading projects...</div>
+        <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+          {isReconnecting ? "Reconnecting to GenVid..." : "Loading projects..."}
+        </div>
       ) : fetchError ? (
         <div className="card-dark" style={{ textAlign: "center", padding: "40px 20px" }}>
           <div style={{ fontSize: "2rem", marginBottom: "8px" }}>⚠️</div>

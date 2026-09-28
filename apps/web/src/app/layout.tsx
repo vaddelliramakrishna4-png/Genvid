@@ -9,7 +9,6 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "GenVid",
   description: "One sentence in. A ready-to-post reel out.",
-  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

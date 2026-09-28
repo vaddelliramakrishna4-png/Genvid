@@ -17,10 +17,14 @@ export function getDb() {
 
   const isProd = process.env.NODE_ENV === "production" || process.env.RENDER || process.env.VERCEL;
   
-  // Force SSL for external Supabase connections (required by Supabase)
+  // Configure connection pooling for production stability
   const client = postgres(databaseUrl, { 
     prepare: false, 
-    ssl: isProd ? "require" : false 
+    ssl: "require",
+    max: 10,                 // Max number of connections
+    idle_timeout: 20,        // Close idle connections after 20s
+    connect_timeout: 10,     // Abort connection attempt after 10s
+    max_lifetime: 60 * 30,   // Close connections older than 30 minutes
   }); 
   _db = drizzle(client, { schema });
   return _db;
