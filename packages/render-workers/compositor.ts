@@ -1,10 +1,9 @@
 import ffmpeg from "fluent-ffmpeg";
-import ffmpegStatic from "ffmpeg-static";
 import path from "path";
 import { RenderManifest } from "@genvid/schemas";
 
-// Tell fluent-ffmpeg where to find the static binary
-ffmpeg.setFfmpegPath(ffmpegStatic as string);
+// Use system ffmpeg installed in Docker or PATH instead of ffmpeg-static
+// to prevent platform binary mismatch errors in production.
 
 export async function composeVideo(
   manifest: { projectId: string; scenes: { mediaUrl: string; duration: number }[]; audioUrl?: string; subtitlesUrl?: string },

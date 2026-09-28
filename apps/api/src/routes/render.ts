@@ -15,11 +15,12 @@ import { buildSystemPrompt } from "@genvid/prompts";
 import { composeVideo } from "@genvid/render-workers";
 import path from "path";
 import fs from "fs/promises";
-import { exec } from "child_process";
-import { promisify } from "util";
-const execAsync = promisify(exec);
+import { execWithTimeout } from "../utils/exec";
 
 export const renderRoutes = new Hono();
+
+const MAX_GEMINI_RETRIES = 4;
+const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 // ─── Phase 1: Generate Script & Initial Media ──────────────────────────────────
 
@@ -57,26 +58,48 @@ renderRoutes.post("/generate-script/:projectId", async (c) => {
       },
     });
 
-    const sceneJson = await provider.generateScript(
-      {
-        projectId: project.id,
-        mode: project.mode,
-        input: project.inputText,
-        businessProfileId: project.businessProfileId,
-        characterId: project.characterId,
-        spec: {
-          durationSec: project.durationSec,
-          aspectRatio: project.aspectRatio as "9:16",
-          styleKey: project.styleKey,
-          seed: project.seed,
-          voiceKey: project.voiceKey,
-          captionPreset: project.captionPreset,
-          musicKey: project.musicKey || "",
-          language: project.language,
-        },
-      },
-      systemPrompt
-    );
+    let sceneJson = null;
+    let geminiAttempt = 0;
+    while (geminiAttempt < MAX_GEMINI_RETRIES && !sceneJson) {
+        geminiAttempt++;
+        try {
+            sceneJson = await provider.generateScript(
+            {
+                projectId: project.id,
+                mode: project.mode,
+                input: project.inputText,
+                businessProfileId: project.businessProfileId,
+                characterId: project.characterId,
+                spec: {
+                durationSec: project.durationSec,
+                aspectRatio: project.aspectRatio as "9:16",
+                styleKey: project.styleKey,
+                seed: project.seed,
+                voiceKey: project.voiceKey,
+                captionPreset: project.captionPreset,
+                musicKey: project.musicKey || "",
+                language: project.language,
+                },
+            },
+            systemPrompt
+            );
+        } catch (err: any) {
+            const msg = err.message || "";
+            if (msg.includes("503") || msg.includes("504") || msg.includes("502") || msg.includes("429") || msg.includes("500") || msg.includes("busy") || msg.includes("demand")) {
+                if (geminiAttempt === MAX_GEMINI_RETRIES) {
+                    throw new Error("Gemini is currently experiencing very high demand and could not fulfill the request after multiple attempts. Please try again later.");
+                }
+                console.warn(`[GEMINI RETRY] Attempt ${geminiAttempt} failed: ${msg}. Retrying...`);
+                await delay(2000 * geminiAttempt + Math.random() * 2000); // Exponential backoff with jitter
+            } else {
+                throw err;
+            }
+        }
+    }
+
+    if (!sceneJson) {
+        throw new Error("Failed to generate script from Gemini.");
+    }
 
     // Save scenes to DB
     const scenesData = sceneJson.scenes.map((scene, idx) => ({
@@ -177,19 +200,64 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
     }
 
     // ── Step 3: TTS (Kokoro) ──────────────────────────────────────────────
-    // Concatenate all narrations
-    const fullNarration = scenes.map(s => s.narration).join("\\n");
-    const audioOutPath = path.join(outputDir, "audio.wav");
-    
+    let ttsScript = "";
+    let alignScript = "";
     try {
-      const ttsScript = require.resolve("@genvid/render-workers/tts.py");
-      await execAsync(`python "${ttsScript}" "${fullNarration.replace(/"/g, '\\"')}" "${audioOutPath}"`);
-    } catch (err) {
-      console.warn("TTS failed (maybe kokoro not installed?), using dummy audio for now", err);
-      // We don't fail immediately because Render might not have Kokoro installed yet without GPU, 
-      // but the user requirement said "Do NOT replace these with mocks". 
-      // If the python script fails, we will throw. 
-      throw new Error("TTS Generation failed: " + (err as Error).message);
+      ttsScript = require.resolve("@genvid/render-workers/tts.py");
+      alignScript = require.resolve("@genvid/render-workers/align.py");
+    } catch {
+      ttsScript = path.resolve(process.cwd(), "../../packages/render-workers/tts.py");
+      alignScript = path.resolve(process.cwd(), "../../packages/render-workers/align.py");
+    }
+
+    const audioFiles: string[] = [];
+    
+    for (let i = 0; i < scenes.length; i++) {
+        const scene = scenes[i];
+        const sceneAudioPath = path.join(outputDir, `audio_${i}.wav`);
+        const maxRetries = 3;
+        let attempt = 0;
+        let success = false;
+        
+        while (attempt < maxRetries && !success) {
+            attempt++;
+            try {
+                // Timeout of 90 seconds per track
+                const { stdout, stderr } = await execWithTimeout(`python "${ttsScript}" "${scene.narration.replace(/"/g, '\\"')}" "${sceneAudioPath}"`, 90000);
+                
+                // Validate output file
+                const stats = await fs.stat(sceneAudioPath).catch(() => null);
+                if (!stats || stats.size === 0) {
+                    throw new Error("Generated audio file is missing or empty.");
+                }
+                success = true;
+                audioFiles.push(sceneAudioPath);
+                console.log(`[TTS] Track ${i+1} completed successfully.`);
+            } catch (err: any) {
+                console.warn(`[TTS RETRY] Scene ${i} attempt ${attempt}/${maxRetries} failed:`, err.message);
+                if (attempt === maxRetries) {
+                    throw new Error(`Voice generation for scene ${i + 1} took too long or failed. We're retrying automatically but this time it failed. Please try again.`);
+                }
+                await delay(2000 * attempt + Math.random() * 2000);
+            }
+        }
+    }
+
+    const finalAudioPath = path.join(outputDir, "audio.wav");
+    
+    if (audioFiles.length > 0) {
+        // Concatenate audio files using ffmpeg
+        const concatListPath = path.join(outputDir, "concat_audio.txt");
+        const concatContent = audioFiles.map(f => `file '${f}'`).join("\\n");
+        await fs.writeFile(concatListPath, concatContent);
+        
+        try {
+            await execWithTimeout(`ffmpeg -f concat -safe 0 -i "${concatListPath}" -c copy "${finalAudioPath}" -y`, 30000);
+        } catch (ffmpegErr: any) {
+            throw new Error("Failed to concatenate audio tracks: " + ffmpegErr.message);
+        }
+    } else {
+        throw new Error("No valid audio files generated.");
     }
 
     await createRenderJob({
@@ -202,12 +270,12 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
     // ── Step 4: Alignment (faster-whisper) ────────────────────────────────
     await updateProjectStatus(projectId, "aligning", { progress: 70 });
     const subtitlesOutPath = path.join(outputDir, "subtitles.ass");
+    const fullNarration = scenes.map(s => s.narration).join("\\n");
     const scriptOutPath = path.join(outputDir, "script.txt");
     await fs.writeFile(scriptOutPath, fullNarration);
     
     try {
-      const alignScript = require.resolve("@genvid/render-workers/align.py");
-      await execAsync(`python "${alignScript}" "${audioOutPath}" "${scriptOutPath}" "${subtitlesOutPath}"`);
+      await execWithTimeout(`python "${alignScript}" "${finalAudioPath}" "${scriptOutPath}" "${subtitlesOutPath}"`, 120000);
     } catch (err) {
       console.warn("Alignment failed", err);
       throw new Error("Alignment failed: " + (err as Error).message);
@@ -227,7 +295,7 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
     
     const manifest = {
       projectId,
-      audioUrl: audioOutPath,
+      audioUrl: finalAudioPath,
       subtitlesUrl: subtitlesOutPath,
       scenes: scenes.map((s: any) => ({
         mediaUrl: s.imageUrl,
@@ -235,6 +303,7 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
       }))
     };
 
+    // Ensure composition itself doesn't hang indefinitely (wrapper has timeout inside maybe, or just rely on global)
     await composeVideo(manifest, outPath);
 
     await createRenderJob({
@@ -281,7 +350,7 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
   } catch (err: any) {
     console.error("Pipeline render error:", err);
     await updateProjectStatus(projectId, "failed", {
-      errorMessage: err.message || "Unknown error",
+      errorMessage: err.message || "Unknown error occurred.",
     });
     return c.json({ error: err.message || "Pipeline failed" }, 500);
   }
