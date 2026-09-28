@@ -5,11 +5,39 @@ import { RenderManifest } from "@genvid/schemas";
 // Use system ffmpeg installed in Docker or PATH instead of ffmpeg-static
 // to prevent platform binary mismatch errors in production.
 
+export async function validateVideo(videoPath: string, expectedDurationSec?: number): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(videoPath, (err, metadata) => {
+      if (err) {
+        console.error("[FFprobe Error] Could not read video file:", err);
+        return reject(new Error("FFprobe could not read the generated video file."));
+      }
+      
+      const duration = metadata.format.duration;
+      if (!duration || duration <= 0) {
+        return reject(new Error("Generated video has no valid duration."));
+      }
+
+      if (expectedDurationSec) {
+        // Allow a 2-second margin of error
+        const diff = Math.abs(duration - expectedDurationSec);
+        if (diff > 2) {
+          return reject(new Error(`Video duration mismatch. Expected ~${expectedDurationSec}s, got ${duration}s`));
+        }
+      }
+      
+      resolve(true);
+    });
+  });
+}
+
 export async function composeVideo(
   manifest: { projectId: string; scenes: { mediaUrl: string; duration: number }[]; audioUrl?: string; subtitlesUrl?: string },
   outputPath: string
 ): Promise<string> {
   console.log(`[GENVID] FFmpeg started for ${manifest.projectId} -> ${outputPath}`);
+
+  const totalExpectedDuration = manifest.scenes.reduce((acc, s) => acc + s.duration, 0);
 
   return new Promise((resolve, reject) => {
     try {
@@ -77,10 +105,15 @@ export async function composeVideo(
           console.error(`[GENVID ERROR] FFmpeg stderr:`, stderr);
           reject(err);
         });
-      (command as any).on("end", () => {
+      (command as any).on("end", async () => {
           console.log(`[GENVID] FFmpeg completed`);
-          console.log(`[GENVID] MP4 created: ${outputPath}`);
-          resolve(outputPath);
+          try {
+            await validateVideo(outputPath, totalExpectedDuration);
+            console.log(`[GENVID] MP4 validated successfully: ${outputPath}`);
+            resolve(outputPath);
+          } catch (valErr) {
+            reject(valErr);
+          }
         });
       command.run();
     } catch (err) {
