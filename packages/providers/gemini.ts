@@ -10,7 +10,22 @@ export class GeminiProvider implements LLMProvider, ImageProvider {
   }
 
   async generateScript(spec: ProjectSpec, systemPrompt: string): Promise<SceneJSON> {
-    const modelName = "gemini-1.5-flash";
+    const defaultModel = "gemini-3.1-flash-lite";
+    const modelName = process.env.GEMINI_MODEL || defaultModel;
+    
+    const forbiddenModels = [
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
+      "gemini-2.0-flash",
+      "gemini-2.5-flash",
+      "gemini-3.1-flash",
+      "gemini-3.1-flash-preview"
+    ];
+
+    if (forbiddenModels.includes(modelName)) {
+      throw new Error(`Configuration Error: Model '${modelName}' is deprecated or forbidden. The system explicitly requires 'gemini-3.1-flash-lite'. Please update your GEMINI_MODEL environment variable or remove it to use the default.`);
+    }
+
     console.log(`[GEMINI] model=${modelName}`);
 
     let responseText = "";
