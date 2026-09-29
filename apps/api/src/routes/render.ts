@@ -200,6 +200,12 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
     }
 
     // ── Step 3: TTS (Kokoro) ──────────────────────────────────────────────
+    const isWindows = process.platform === "win32";
+    const pythonExe = process.env.VERCEL ? "python3" 
+      : (process.env.RENDER || process.env.DOCKER || process.cwd().includes("/app"))
+        ? "/app/.venv/bin/python" 
+        : path.resolve(process.cwd(), "../../.venv", isWindows ? "Scripts/python.exe" : "bin/python");
+
     let ttsScript = "";
     let alignScript = "";
     try {
@@ -224,8 +230,8 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
         while (attempt < maxRetries && !success) {
             attempt++;
             try {
-                // Timeout of 300 seconds per track to allow Kokoro model downloads
-                const { stdout, stderr } = await execWithTimeout(`python "${ttsScript}" "${scene.narration.replace(/"/g, '\\"')}" "${sceneAudioPath}"`, 300000);
+                // Timeout of 20 minutes per track to allow Kokoro model downloads (weights are gigabytes)
+                const { stdout, stderr } = await execWithTimeout(`"${pythonExe}" "${ttsScript}" "${scene.narration.replace(/"/g, '\\"')}" "${sceneAudioPath}"`, 1200000);
                 
                 // Validate output file
                 const stats = await fs.stat(sceneAudioPath).catch(() => null);
@@ -254,7 +260,8 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
         await fs.writeFile(concatListPath, concatContent);
         
         try {
-            await execWithTimeout(`ffmpeg -f concat -safe 0 -i "${concatListPath}" -c copy "${finalAudioPath}" -y`, 180000);
+            const ffmpegStaticPath = require("ffmpeg-static");
+            await execWithTimeout(`"${ffmpegStaticPath}" -f concat -safe 0 -i "${concatListPath}" -c copy "${finalAudioPath}" -y`, 180000);
         } catch (ffmpegErr: any) {
             throw new Error("Failed to concatenate audio tracks: " + ffmpegErr.message);
         }
@@ -277,7 +284,7 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
     await fs.writeFile(scriptOutPath, fullNarration);
     
     try {
-      await execWithTimeout(`python "${alignScript}" "${finalAudioPath}" "${scriptOutPath}" "${subtitlesOutPath}"`, 120000);
+      await execWithTimeout(`"${pythonExe}" "${alignScript}" "${finalAudioPath}" "${scriptOutPath}" "${subtitlesOutPath}"`, 600000);
     } catch (err) {
       console.warn("Alignment failed", err);
       throw new Error("Alignment failed: " + (err as Error).message);

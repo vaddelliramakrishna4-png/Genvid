@@ -170,7 +170,11 @@ export async function renderVideoForProject(projectId: string): Promise<string> 
     await fs.writeFile(scriptPath, fullNarration);
     
     // Use system python in production, or local venv in dev
-    const pythonExe = process.env.VERCEL ? "python3" : path.join(process.cwd(), "..", "..", ".venv", "Scripts", "python.exe");
+    const isWindows = process.platform === "win32";
+    const pythonExe = process.env.VERCEL ? "python3" 
+      : (process.env.RENDER || process.env.DOCKER || process.cwd().includes("/app"))
+        ? "/app/.venv/bin/python" 
+        : path.resolve(process.cwd(), "../../.venv", isWindows ? "Scripts/python.exe" : "bin/python");
 
     // Run TTS
     // Use dynamic resolution to find the scripts from the render-workers package

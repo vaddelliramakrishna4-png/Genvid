@@ -2,8 +2,16 @@ import ffmpeg from "fluent-ffmpeg";
 import path from "path";
 import { RenderManifest } from "@genvid/schemas";
 
-// Use system ffmpeg installed in Docker or PATH instead of ffmpeg-static
-// to prevent platform binary mismatch errors in production.
+const ffmpegStatic = require("ffmpeg-static");
+const ffprobeStatic = require("ffprobe-static");
+
+// Configure fluent-ffmpeg to use the static binary to prevent missing executable errors
+if (ffmpegStatic) {
+  ffmpeg.setFfmpegPath(ffmpegStatic);
+}
+if (ffprobeStatic && ffprobeStatic.path) {
+  ffmpeg.setFfprobePath(ffprobeStatic.path);
+}
 
 export async function validateVideo(videoPath: string, expectedDurationSec?: number): Promise<boolean> {
   return new Promise((resolve, reject) => {
