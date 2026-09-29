@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [greeting, setGreeting] = useState("Good evening");
   const [loading, setLoading] = useState(true);
+  const [loadingStage, setLoadingStage] = useState(0);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -111,7 +112,18 @@ export default function DashboardPage() {
     }
     
     loadData();
-    return () => clearInterval(interval);
+
+    // Sequence for long loading times (cold starts on Render)
+    const stageTimers = [
+      setTimeout(() => setLoadingStage(1), 4000),   // After 4s: Waking up
+      setTimeout(() => setLoadingStage(2), 12000),  // After 12s: Spinning up servers
+      setTimeout(() => setLoadingStage(3), 25000)   // After 25s: Almost there
+    ];
+
+    return () => {
+      clearInterval(interval);
+      stageTimers.forEach(clearTimeout);
+    };
   }, []);
 
   const series = [
@@ -209,7 +221,7 @@ export default function DashboardPage() {
       </div>
 
       {loading ? (
-        <div style={{ 
+        <div className="animate-fade-in" style={{ 
           textAlign: "center", 
           padding: "60px 20px", 
           display: "flex", 
@@ -217,29 +229,70 @@ export default function DashboardPage() {
           alignItems: "center",
           background: "linear-gradient(180deg, rgba(20, 20, 30, 0.3) 0%, rgba(10, 10, 15, 0.5) 100%)",
           borderRadius: "16px",
-          border: "1px solid rgba(255, 255, 255, 0.03)"
+          border: "1px solid rgba(255, 255, 255, 0.03)",
+          position: "relative",
+          overflow: "hidden"
         }}>
+          {/* Subtle pulse background */}
           <div style={{
-            width: "40px",
-            height: "40px",
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "120px",
+            height: "120px",
+            background: "radial-gradient(circle, rgba(167, 139, 250, 0.08) 0%, rgba(167, 139, 250, 0) 70%)",
             borderRadius: "50%",
-            border: "2px solid rgba(167, 139, 250, 0.2)",
+            pointerEvents: "none"
+          }}></div>
+
+          <div style={{
+            width: "42px",
+            height: "42px",
+            borderRadius: "50%",
+            border: "2px solid rgba(167, 139, 250, 0.15)",
             borderTopColor: "var(--accent-violet)",
-            animation: "spin 1s linear infinite",
-            marginBottom: "16px"
+            animation: "spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite",
+            marginBottom: "20px",
+            boxShadow: "0 0 15px rgba(167, 139, 250, 0.1)"
           }}></div>
           <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+          
           <div style={{ 
-            fontSize: "14px", 
-            fontWeight: 500, 
+            fontSize: "15px", 
+            fontWeight: 600, 
             color: "var(--text-primary)",
-            letterSpacing: "0.3px",
-            marginBottom: "6px"
+            letterSpacing: "-0.2px",
+            marginBottom: "6px",
+            transition: "opacity 0.3s ease"
           }}>
-            {isReconnecting ? "Reconnecting to servers..." : "Loading your workspace"}
+            {isReconnecting 
+              ? "Reconnecting to servers..." 
+              : loadingStage === 0 
+                ? "Loading your workspace" 
+                : loadingStage === 1 
+                  ? "Waking up the backend..." 
+                  : loadingStage === 2 
+                    ? "Starting database connection..." 
+                    : "Almost there, fetching projects..."}
           </div>
-          <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-            {isReconnecting ? "This might take a few moments" : "Fetching your latest projects"}
+          
+          <div style={{ 
+            fontSize: "13px", 
+            color: "var(--text-muted)",
+            maxWidth: "250px",
+            lineHeight: 1.5,
+            transition: "opacity 0.3s ease"
+          }}>
+            {isReconnecting 
+              ? "This might take a few moments" 
+              : loadingStage === 0 
+                ? "Fetching your latest projects" 
+                : loadingStage === 1 
+                  ? "Server instances spin down on free tiers. Hang tight!" 
+                  : loadingStage === 2 
+                    ? "Connecting to the database pooler..." 
+                    : "Finalizing the connection..."}
           </div>
         </div>
       ) : fetchError ? (
