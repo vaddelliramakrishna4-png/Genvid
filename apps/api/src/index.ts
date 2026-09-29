@@ -55,11 +55,26 @@ app.get("/", (c) => {
   });
 });
 
-app.get("/health", (c) => {
-  return c.json({
-    status: "ok",
-    service: "genvid-api"
-  });
+app.get("/health", async (c) => {
+  try {
+    const { getDb, projects } = await import("@genvid/db");
+    const { count } = await import("drizzle-orm");
+    const db = getDb();
+    await db.select({ value: count() }).from(projects).limit(1);
+    
+    return c.json({
+      status: "ok",
+      service: "genvid-api",
+      database: "connected"
+    });
+  } catch (err: any) {
+    return c.json({
+      status: "error",
+      service: "genvid-api",
+      database: "disconnected",
+      error: err.message
+    }, 500);
+  }
 });
 
 // ─── Routes ──────────────────────────────────────────────────────────────────

@@ -103,7 +103,10 @@ projectRoutes.get("", async (c) => {
     return c.json({ projects: userProjects });
   } catch (err: any) {
     console.error("[GET /projects] ERROR:", err.message, err.stack);
-    return c.json({ error: err.message }, 500);
+    const safeError = err.message.toLowerCase().includes("failed query") 
+      ? "Unable to load projects due to a database schema mismatch. Please try again." 
+      : "Unable to load projects. Please try again.";
+    return c.json({ error: safeError }, 500);
   }
 });
 
@@ -119,7 +122,10 @@ projectRoutes.get("/", async (c) => {
     return c.json({ projects: userProjects });
   } catch (err: any) {
     console.error("[GET /projects/] ERROR:", err.message, err.stack);
-    return c.json({ error: err.message }, 500);
+    const safeError = err.message.toLowerCase().includes("failed query") 
+      ? "Unable to load projects due to a database schema mismatch. Please try again." 
+      : "Unable to load projects. Please try again.";
+    return c.json({ error: safeError }, 500);
   }
 });
 

@@ -13,35 +13,42 @@ export class GeminiProvider implements LLMProvider, ImageProvider {
     const defaultModel = "gemini-3.1-flash-lite";
     const modelName = process.env.GEMINI_MODEL || defaultModel;
     
-    const forbiddenModels = [
-      "gemini-1.5-flash",
-      "gemini-1.5-pro",
-      "gemini-2.0-flash",
-      "gemini-2.5-flash",
-      "gemini-3.1-flash",
-      "gemini-3.1-flash-preview"
-    ];
-
-    if (forbiddenModels.includes(modelName)) {
-      throw new Error(`Configuration Error: Model '${modelName}' is deprecated or forbidden. The system explicitly requires 'gemini-3.1-flash-lite'. Please update your GEMINI_MODEL environment variable or remove it to use the default.`);
+    if (modelName !== "gemini-3.1-flash-lite") {
+      console.warn(`[WARNING] Using non-standard Gemini model: ${modelName}. Expected: gemini-3.1-flash-lite`);
     }
 
     console.log(`[GEMINI] model=${modelName}`);
 
     let responseText = "";
-    try {
-      const response = await this.ai.models.generateContent({
-        model: modelName,
-        contents: spec.input,
-        config: {
-          systemInstruction: systemPrompt,
-          responseMimeType: "application/json",
-        },
-      });
-      responseText = response.text || "{}";
-    } catch (err: any) {
-      console.error(`[GEMINI ERROR] Model ${modelName} failed:`, err?.message || err);
-      throw err;
+    let attempts = 0;
+    const maxAttempts = 3;
+    let delay = 2000;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        const response = await this.ai.models.generateContent({
+          model: modelName,
+          contents: spec.input,
+          config: {
+            systemInstruction: systemPrompt,
+            responseMimeType: "application/json",
+          },
+        });
+        responseText = response.text || "{}";
+        break; // Success, exit retry loop
+      } catch (err: any) {
+        console.error(`[GEMINI ERROR] Model ${modelName} failed on attempt ${attempts}:`, err?.message || err);
+        
+        // If 503 Unavailable or 429 Too Many Requests, and we have retries left
+        if ((err?.message?.includes("503") || err?.message?.includes("429") || err?.status === 503 || err?.status === 429) && attempts < maxAttempts) {
+          console.log(`[GEMINI RETRY] Waiting ${delay}ms before next attempt...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+        } else {
+          throw new Error(`Gemini API Error after ${attempts} attempts: ${err?.message || "Unknown error"}`);
+        }
+      }
     }
 
     if (!responseText) {

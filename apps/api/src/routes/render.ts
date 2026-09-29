@@ -203,9 +203,11 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
     let ttsScript = "";
     let alignScript = "";
     try {
-      ttsScript = require.resolve("@genvid/render-workers/tts.py");
-      alignScript = require.resolve("@genvid/render-workers/align.py");
-    } catch {
+      const pkgDir = path.dirname(require.resolve("@genvid/render-workers/package.json"));
+      ttsScript = path.join(pkgDir, "tts.py");
+      alignScript = path.join(pkgDir, "align.py");
+    } catch (e) {
+      console.warn("Failed to resolve package.json from @genvid/render-workers, falling back to process.cwd()", e);
       ttsScript = path.resolve(process.cwd(), "../../packages/render-workers/tts.py");
       alignScript = path.resolve(process.cwd(), "../../packages/render-workers/align.py");
     }
@@ -222,8 +224,8 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
         while (attempt < maxRetries && !success) {
             attempt++;
             try {
-                // Timeout of 90 seconds per track
-                const { stdout, stderr } = await execWithTimeout(`python "${ttsScript}" "${scene.narration.replace(/"/g, '\\"')}" "${sceneAudioPath}"`, 90000);
+                // Timeout of 300 seconds per track to allow Kokoro model downloads
+                const { stdout, stderr } = await execWithTimeout(`python "${ttsScript}" "${scene.narration.replace(/"/g, '\\"')}" "${sceneAudioPath}"`, 300000);
                 
                 // Validate output file
                 const stats = await fs.stat(sceneAudioPath).catch(() => null);
@@ -252,7 +254,7 @@ renderRoutes.post("/render-media/:projectId", async (c) => {
         await fs.writeFile(concatListPath, concatContent);
         
         try {
-            await execWithTimeout(`ffmpeg -f concat -safe 0 -i "${concatListPath}" -c copy "${finalAudioPath}" -y`, 30000);
+            await execWithTimeout(`ffmpeg -f concat -safe 0 -i "${concatListPath}" -c copy "${finalAudioPath}" -y`, 180000);
         } catch (ffmpegErr: any) {
             throw new Error("Failed to concatenate audio tracks: " + ffmpegErr.message);
         }
