@@ -209,20 +209,238 @@ export default function DashboardPage() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
-          {isReconnecting ? "Reconnecting to GenVid..." : "Loading projects..."}
+        <div style={{ 
+          textAlign: "center", 
+          padding: "60px 20px", 
+          display: "flex", 
+          flexDirection: "column", 
+          alignItems: "center",
+          background: "linear-gradient(180deg, rgba(20, 20, 30, 0.3) 0%, rgba(10, 10, 15, 0.5) 100%)",
+          borderRadius: "16px",
+          border: "1px solid rgba(255, 255, 255, 0.03)"
+        }}>
+          <div style={{
+            width: "40px",
+            height: "40px",
+            borderRadius: "50%",
+            border: "2px solid rgba(167, 139, 250, 0.2)",
+            borderTopColor: "var(--accent-violet)",
+            animation: "spin 1s linear infinite",
+            marginBottom: "16px"
+          }}></div>
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+          <div style={{ 
+            fontSize: "14px", 
+            fontWeight: 500, 
+            color: "var(--text-primary)",
+            letterSpacing: "0.3px",
+            marginBottom: "6px"
+          }}>
+            {isReconnecting ? "Reconnecting to servers..." : "Loading your workspace"}
+          </div>
+          <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+            {isReconnecting ? "This might take a few moments" : "Fetching your latest projects"}
+          </div>
         </div>
       ) : fetchError ? (
-        <div className="card-dark" style={{ textAlign: "center", padding: "40px 20px" }}>
-          <div style={{ fontSize: "2rem", marginBottom: "8px" }}>⚠️</div>
-          <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "4px", color: "var(--error)" }}>Failed to load projects</div>
-          <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{fetchError}</div>
+        <div style={{
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: "16px",
+          padding: "40px 24px",
+          background: "linear-gradient(180deg, rgba(40, 15, 20, 0.4) 0%, rgba(15, 10, 12, 0.8) 100%)",
+          border: "1px solid rgba(248, 113, 113, 0.15)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          boxShadow: "0 8px 32px rgba(248, 113, 113, 0.05)",
+          backdropFilter: "blur(12px)"
+        }}>
+          {/* Subtle glowing background effect behind the icon */}
+          <div style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "150px",
+            height: "150px",
+            background: "radial-gradient(circle, rgba(248, 113, 113, 0.1) 0%, rgba(248, 113, 113, 0) 70%)",
+            borderRadius: "50%",
+            pointerEvents: "none"
+          }}></div>
+          
+          <div style={{
+            width: "56px",
+            height: "56px",
+            borderRadius: "50%",
+            background: "rgba(248, 113, 113, 0.1)",
+            border: "1px solid rgba(248, 113, 113, 0.2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: "20px",
+            color: "#F87171",
+            boxShadow: "0 0 20px rgba(248, 113, 113, 0.1)",
+            zIndex: 1
+          }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          
+          <div style={{ 
+            fontSize: "17px", 
+            fontWeight: 600, 
+            marginBottom: "8px", 
+            color: "#FCA5A5",
+            letterSpacing: "-0.3px",
+            zIndex: 1 
+          }}>
+            Connection Error
+          </div>
+          
+          <div style={{ 
+            fontSize: "13.5px", 
+            color: "rgba(255, 255, 255, 0.6)", 
+            maxWidth: "260px", 
+            lineHeight: 1.5,
+            marginBottom: "24px",
+            zIndex: 1 
+          }}>
+            {fetchError === "Failed to fetch" ? "We couldn't connect to the server. It might be down or you may be offline." : fetchError}
+          </div>
+          
+          <button 
+            onClick={() => window.location.reload()}
+            style={{
+              padding: "10px 24px",
+              borderRadius: "99px",
+              background: "linear-gradient(135deg, rgba(248, 113, 113, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%)",
+              border: "1px solid rgba(248, 113, 113, 0.3)",
+              color: "#FCA5A5",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              zIndex: 1,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)"
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "linear-gradient(135deg, rgba(248, 113, 113, 0.3) 0%, rgba(220, 38, 38, 0.3) 100%)";
+              e.currentTarget.style.transform = "translateY(-1px)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "linear-gradient(135deg, rgba(248, 113, 113, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21l5.67-5.67"/>
+            </svg>
+            Try Again
+          </button>
         </div>
       ) : projects.length === 0 ? (
-        <div className="card-dark" style={{ textAlign: "center", padding: "40px 20px" }}>
-          <div style={{ fontSize: "2rem", marginBottom: "8px" }}>🎬</div>
-          <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "4px" }}>No videos yet</div>
-          <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Tap + to create your first reel</div>
+        <div style={{
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: "16px",
+          padding: "40px 24px",
+          background: "linear-gradient(180deg, rgba(30, 25, 45, 0.3) 0%, rgba(15, 12, 20, 0.7) 100%)",
+          border: "1px solid rgba(167, 139, 250, 0.15)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          boxShadow: "0 8px 32px rgba(167, 139, 250, 0.05)",
+          backdropFilter: "blur(12px)"
+        }}>
+          {/* Glowing background behind icon */}
+          <div style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "140px",
+            height: "140px",
+            background: "radial-gradient(circle, rgba(167, 139, 250, 0.1) 0%, rgba(167, 139, 250, 0) 70%)",
+            borderRadius: "50%",
+            pointerEvents: "none"
+          }}></div>
+          
+          <div style={{
+            width: "64px",
+            height: "64px",
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(124, 58, 237, 0.2) 100%)",
+            border: "1px solid rgba(167, 139, 250, 0.3)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "28px",
+            marginBottom: "20px",
+            boxShadow: "0 0 24px rgba(167, 139, 250, 0.15)",
+            zIndex: 1
+          }}>
+            🎬
+          </div>
+          
+          <div style={{ 
+            fontSize: "16px", 
+            fontWeight: 600, 
+            marginBottom: "8px", 
+            color: "var(--text-primary)",
+            letterSpacing: "-0.3px",
+            zIndex: 1 
+          }}>
+            No videos yet
+          </div>
+          
+          <div style={{ 
+            fontSize: "13px", 
+            color: "var(--text-muted)", 
+            maxWidth: "240px", 
+            lineHeight: 1.5,
+            marginBottom: "24px",
+            zIndex: 1 
+          }}>
+            Your creative journey starts here. Tap the + button to generate your first video.
+          </div>
+          
+          <button 
+            onClick={() => router.push("/create")}
+            style={{
+              padding: "10px 24px",
+              borderRadius: "99px",
+              background: "var(--accent-gradient)",
+              border: "none",
+              color: "#fff",
+              fontSize: "14px",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "transform 0.2s ease, box-shadow 0.2s ease",
+              zIndex: 1,
+              boxShadow: "0 4px 12px rgba(124, 58, 237, 0.3)"
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 6px 16px rgba(124, 58, 237, 0.4)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(124, 58, 237, 0.3)";
+            }}
+          >
+            Create Video
+          </button>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column" }}>

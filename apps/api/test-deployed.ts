@@ -91,7 +91,7 @@ async function runTest() {
       
       // Fetch scenes directly from DB to simulate UI
       const { data: scenesData } = await supabase.from("scenes").select("*").eq("project_id", projectId);
-      scenes = scenesData;
+      scenes = scenesData || [];
       console.log("Scenes found:", scenes?.length);
       break;
     }
