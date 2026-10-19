@@ -10,49 +10,52 @@ export class GeminiProvider implements LLMProvider, ImageProvider {
   }
 
   async generateScript(spec: ProjectSpec, systemPrompt: string): Promise<SceneJSON> {
-    const defaultModel = "gemini-3.1-flash-lite";
-    const modelName = process.env.GEMINI_MODEL || defaultModel;
-    
-    if (modelName !== "gemini-3.1-flash-lite") {
-      console.warn(`[WARNING] Using non-standard Gemini model: ${modelName}. Expected: gemini-3.1-flash-lite`);
-    }
-
-    console.log(`[GEMINI] model=${modelName}`);
+    const candidateModels = process.env.GEMINI_MODEL
+      ? [process.env.GEMINI_MODEL, "gemini-3.5-flash-lite", "gemini-3.8-flash"]
+      : ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.1-flash-lite"];
 
     let responseText = "";
-    let attempts = 0;
-    const maxAttempts = 3;
-    let delay = 2000;
+    let lastError: any = null;
 
-    while (attempts < maxAttempts) {
-      attempts++;
-      try {
-        const response = await this.ai.models.generateContent({
-          model: modelName,
-          contents: spec.input,
-          config: {
-            systemInstruction: systemPrompt,
-            responseMimeType: "application/json",
-          },
-        });
-        responseText = response.text || "{}";
-        break; // Success, exit retry loop
-      } catch (err: any) {
-        console.error(`[GEMINI ERROR] Model ${modelName} failed on attempt ${attempts}:`, err?.message || err);
-        
-        // If 503 Unavailable or 429 Too Many Requests, and we have retries left
-        if ((err?.message?.includes("503") || err?.message?.includes("429") || err?.status === 503 || err?.status === 429) && attempts < maxAttempts) {
-          console.log(`[GEMINI RETRY] Waiting ${delay}ms before next attempt...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          delay *= 2; // Exponential backoff
-        } else {
-          throw new Error(`Gemini API Error after ${attempts} attempts: ${err?.message || "Unknown error"}`);
+    for (const modelName of candidateModels) {
+      console.log(`[GEMINI] Trying model=${modelName}`);
+      let attempts = 0;
+      const maxAttempts = 2;
+      let delay = 1500;
+
+      while (attempts < maxAttempts) {
+        attempts++;
+        try {
+          const response = await this.ai.models.generateContent({
+            model: modelName,
+            contents: spec.input,
+            config: {
+              systemInstruction: systemPrompt,
+              responseMimeType: "application/json",
+            },
+          });
+          responseText = response.text || "{}";
+          if (responseText && responseText.trim() !== "{}") {
+            break;
+          }
+        } catch (err: any) {
+          lastError = err;
+          console.warn(`[GEMINI WARN] Model ${modelName} attempt ${attempts} failed:`, err?.message || err);
+          if (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2;
+          }
         }
+      }
+
+      if (responseText && responseText.trim() !== "{}") {
+        console.log(`[GEMINI SUCCESS] Generated script using ${modelName}`);
+        break;
       }
     }
 
-    if (!responseText) {
-      throw new Error("Gemini returned empty response text");
+    if (!responseText || responseText.trim() === "{}") {
+      throw new Error(`Gemini API Error: all models failed. Last error: ${lastError?.message || "empty response"}`);
     }
 
     // Strip markdown formatting if Gemini included it

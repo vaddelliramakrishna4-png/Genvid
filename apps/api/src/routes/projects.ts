@@ -9,6 +9,7 @@ import {
   updateScene,
 } from "@genvid/db";
 import { generateStoryboardForProject, renderVideoForProject } from "@genvid/pipeline";
+import { executeGenerateScript, executeRenderMedia } from "./render.js";
 import { authMiddleware, type AuthEnv } from "../middleware/auth";
 
 export const projectRoutes = new Hono<AuthEnv>();
@@ -72,12 +73,10 @@ projectRoutes.post("/", async (c) => {
 
     console.log(`[CREATE] Project created and queued: ${project.id}`);
     
-    // Trigger the background render pipeline asynchronously
-    const port = process.env.PORT || 3001;
-    const renderUrl = `http://127.0.0.1:${port}/api/v1/render/generate-script/${project.id}`;
-    fetch(renderUrl, { method: "POST" })
-      .then(res => console.log(`[BACKGROUND RENDER] Triggered for ${project.id}, status: ${res.status}`))
-      .catch(err => console.error(`[BACKGROUND RENDER] Failed to trigger for ${project.id}:`, err));
+    // Trigger the background render pipeline directly and reliably
+    executeGenerateScript(project.id).catch((err: any) => {
+      console.error(`[BACKGROUND GENERATE SCRIPT ERROR] for ${project.id}:`, err);
+    });
 
     return c.json({ success: true, project }, 201);
   } catch (err: any) {
@@ -126,6 +125,14 @@ projectRoutes.get("/:id", async (c) => {
 
   if (project.userId !== userId) {
     return c.json({ error: "Forbidden" }, 403);
+  }
+
+  // Auto-heal / auto-trigger: if project is stuck in queued, kick off script generation in background
+  if (project.status === "queued") {
+    console.log(`[GET /projects/:id] Auto-triggering script generation for queued project ${projectId}`);
+    executeGenerateScript(projectId).catch((err: any) => {
+      console.error(`[AUTO-TRIGGER SCRIPT ERROR] for ${projectId}:`, err);
+    });
   }
 
   return c.json({ project });
@@ -233,12 +240,10 @@ projectRoutes.post("/:id/approve", async (c) => {
   await updateProjectStatus(projectId, "generating_voice", { progress: 45 });
   console.log(`[APPROVE] Project ${projectId} approved and queued for render`);
 
-  // Trigger the background render media pipeline asynchronously
-  const port = process.env.PORT || 3001;
-  const renderUrl = `http://127.0.0.1:${port}/api/v1/render/render-media/${projectId}`;
-  fetch(renderUrl, { method: "POST" })
-    .then(res => console.log(`[BACKGROUND RENDER MEDIA] Triggered for ${projectId}, status: ${res.status}`))
-    .catch(err => console.error(`[BACKGROUND RENDER MEDIA] Failed to trigger for ${projectId}:`, err));
+  // Trigger the background render media pipeline directly and reliably
+  executeRenderMedia(projectId).catch((err: any) => {
+    console.error(`[BACKGROUND RENDER MEDIA ERROR] for ${projectId}:`, err);
+  });
 
   return c.json({ success: true });
 });
@@ -355,6 +360,9 @@ projectRoutes.post("/:id/regenerate", async (c) => {
   
   try {
     const updated = await updateProjectStatus(projectId, "queued", { progress: 0, errorMessage: null });
+    executeGenerateScript(projectId).catch((err: any) => {
+      console.error(`[REGENERATE SCRIPT ERROR] for ${projectId}:`, err);
+    });
     return c.json({ success: true, project: updated });
   } catch (err: any) {
     console.error("Regenerate failed:", err);
@@ -375,6 +383,9 @@ projectRoutes.post("/:id/render", async (c) => {
   // Set status directly to generating_voice
   try {
     const updated = await updateProjectStatus(projectId, "generating_voice", { progress: 45, errorMessage: null });
+    executeRenderMedia(projectId).catch((err: any) => {
+      console.error(`[MANUAL RENDER MEDIA ERROR] for ${projectId}:`, err);
+    });
     return c.json({ success: true, project: updated });
   } catch (err: any) {
     console.error("Render failed:", err);

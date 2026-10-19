@@ -21,6 +21,8 @@ export default function ProjectPage() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("");
+  const [countdownSec, setCountdownSec] = useState<number>(30);
+  const [lastStatus, setLastStatus] = useState<string>("");
   const supabase = createClient();
 
   useEffect(() => {
@@ -76,6 +78,33 @@ export default function ProjectPage() {
   const isRendering = project ? ["generating_voice", "aligning", "compositing", "rendering", "uploading"].includes(project.status) : false;
   const isCompleted = project ? project.status === "completed" : false;
   const isFailed = project ? project.status === "failed" : false;
+
+  // Live countdown timer for active render stage based on reel duration and scene count
+  useEffect(() => {
+    if (!isRendering || !project) return;
+
+    if (project.status !== lastStatus) {
+      setLastStatus(project.status);
+      let initSec = 30;
+      if (project.status === "generating_voice") {
+        // Base estimation: ~30-40s based on video length and narration tracks
+        initSec = Math.max(25, Math.min(45, (scenes.length || 3) * 10));
+      } else if (project.status === "aligning") {
+        initSec = 8;
+      } else if (project.status === "compositing") {
+        initSec = 20;
+      } else if (project.status === "uploading") {
+        initSec = 5;
+      }
+      setCountdownSec(initSec);
+    }
+
+    const timer = setInterval(() => {
+      setCountdownSec((prev) => (prev > 1 ? prev - 1 : 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isRendering, project?.status, scenes.length, lastStatus]);
 
   // Removed fake automatic progression since the backend handles it via polling
 
@@ -400,7 +429,27 @@ export default function ProjectPage() {
                 }}>
                   {isCompleted ? "✓" : (isActive ? "" : (index + 3))}
                 </span>
-                {step.label} {step.id === "generating_voice" && !isPending && `— ${scenes.length} narration tracks`}
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span>
+                    {step.label} {step.id === "generating_voice" && !isPending && `— ${scenes.length} narration tracks`}
+                  </span>
+                  {isActive && (
+                    <span style={{ 
+                      fontSize: "11px", 
+                      fontWeight: 700, 
+                      color: "var(--accent-violet)", 
+                      background: "rgba(124, 92, 255, 0.12)", 
+                      border: "1px solid rgba(124, 92, 255, 0.25)", 
+                      padding: "2px 8px", 
+                      borderRadius: "99px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}>
+                      ⏱ ~{countdownSec}s
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -410,12 +459,102 @@ export default function ProjectPage() {
           <i style={{ display: "block", height: "100%", width: `${currentProgress}%`, background: "var(--accent-gradient)", borderRadius: "99px", transition: "width 1s linear" }}></i>
         </div>
         
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{currentProgress}%</span>
-          <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>keep this open — or come back in Projects</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ color: "var(--text-secondary)", fontSize: "11px", fontWeight: 600 }}>{currentProgress}%</span>
+            <span style={{ color: "var(--accent-violet)", fontSize: "11px", fontWeight: 700 }}>
+              • ~{countdownSec}s remaining
+            </span>
+          </div>
+          <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
+            {project?.status === "generating_voice"
+              ? `Synthesizing voices for ${project?.durationSec || 30}s reel`
+              : project?.status === "aligning"
+              ? "Aligning word-level captions"
+              : project?.status === "compositing"
+              ? "Compositing 1080x1920 video"
+              : "Uploading final reel"}
+          </span>
         </div>
 
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (isFailed) {
+    return (
+      <div className="animate-fade-in" style={{ flex: 1, display: "flex", flexDirection: "column", padding: "24px 20px" }}>
+        <header style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "12px" }}>
+          <div onClick={() => router.push("/dashboard")} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: "32px", height: "32px", borderRadius: "50%", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}>
+            <span style={{ fontSize: "16px" }}>←</span>
+          </div>
+          <div>
+            <div style={{ fontSize: "10px", fontWeight: 700, color: "#f87171", letterSpacing: "1px" }}>RENDER NOTICE</div>
+            <h1 className="font-display" style={{ fontSize: "1.5rem", fontWeight: 700 }}>Something went wrong</h1>
+          </div>
+        </header>
+
+        <div style={{ background: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "var(--radius-md)", padding: "16px", marginBottom: "24px" }}>
+          <div style={{ fontSize: "12px", color: "#fca5a5", marginBottom: "8px", fontWeight: 600 }}>Status:</div>
+          <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, wordBreak: "break-word" }}>
+            {project.errorMessage || "The render process encountered an unexpected issue while generating media."}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <button
+            className="btn-primary"
+            onClick={async () => {
+              setProject({ ...project, status: "generating_voice", progress: 45, errorMessage: null });
+              try {
+                const { data: { session } } = await supabase.auth.getSession();
+                await fetch(`/api/v1/projects/${projectId}/approve`, {
+                  method: "POST",
+                  headers: { 
+                    "Authorization": `Bearer ${session?.access_token}`,
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({ scenes }),
+                  credentials: "omit"
+                });
+              } catch (e) {
+                console.error(e);
+              }
+            }}
+          >
+            ↻ Retry Generation
+          </button>
+          
+          <button
+            onClick={async () => {
+              setProject({ ...project, status: "storyboard", errorMessage: null });
+              try {
+                const { data: { session } } = await supabase.auth.getSession();
+                await fetch(`/api/v1/projects/${projectId}`, {
+                  method: "PATCH",
+                  headers: { 
+                    "Authorization": `Bearer ${session?.access_token}`,
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({ status: "storyboard" }),
+                });
+              } catch (e) {}
+            }}
+            style={{
+              padding: "14px",
+              borderRadius: "var(--radius-md)",
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border-subtle)",
+              color: "var(--text-secondary)",
+              fontWeight: 600,
+              fontSize: "13px",
+              cursor: "pointer"
+            }}
+          >
+            ← Back to Storyboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -444,9 +583,12 @@ export default function ProjectPage() {
         height: "390px", marginBottom: "16px", border: "1px solid var(--border-subtle)" 
       }}>
         {project.outputVideoUrl ? (
-          <video src={project.outputVideoUrl} controls autoPlay loop style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <video src={project.outputVideoUrl} controls autoPlay loop playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
-          <video src="https://assets.mixkit.co/videos/preview/mixkit-vertical-shot-of-a-skater-doing-a-flip-41846-large.mp4" controls autoPlay loop style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#0e0e14", color: "var(--text-secondary)", gap: "8px" }}>
+            <div style={{ width: "24px", height: "24px", borderRadius: "50%", border: "2px solid rgba(124,92,255,0.3)", borderTopColor: "var(--accent-violet)", animation: "spin 1s linear infinite" }} />
+            <span style={{ fontSize: "12px" }}>Preparing video player...</span>
+          </div>
         )}
       </div>
 

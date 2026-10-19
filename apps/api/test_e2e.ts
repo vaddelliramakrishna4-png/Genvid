@@ -2,8 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import dotenv from 'dotenv';
 dotenv.config({ path: '../../.env' });
 
-const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const supabaseAdmin = createClient(process.env.SUPABASE_URL || "", process.env.SUPABASE_SERVICE_ROLE_KEY || "");
+const supabase = createClient(process.env.SUPABASE_URL || "", process.env.SUPABASE_ANON_KEY || "");
 
 async function run() {
   console.log("Starting E2E test...");
@@ -21,7 +21,7 @@ async function run() {
   const password = "password12345";
   await supabaseAdmin.auth.admin.updateUserById(user.id, { password, email_confirm: true });
 
-  const res = await supabase.auth.signInWithPassword({ email: user.email, password });
+  const res = await supabase.auth.signInWithPassword({ email: user.email || "", password });
   if (res.error) {
     console.error("Login failed:", res.error);
     return;
