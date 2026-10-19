@@ -91,7 +91,7 @@ projectRoutes.post("/", async (c) => {
 
 // ─── GET /projects — List user's projects ────────────────────────────────────
 
-projectRoutes.get("", async (c) => {
+projectRoutes.get("/", async (c) => {
   try {
     const userId = c.get("userId");
     const limit = parseInt(c.req.query("limit") || "20", 10);
@@ -103,29 +103,12 @@ projectRoutes.get("", async (c) => {
     return c.json({ projects: userProjects });
   } catch (err: any) {
     console.error("[GET /projects] ERROR:", err.message, err.stack);
-    const safeError = err.message.toLowerCase().includes("failed query") 
-      ? "Unable to load projects due to a database schema mismatch. Please try again." 
-      : "Unable to load projects. Please try again.";
-    return c.json({ error: safeError }, 500);
-  }
-});
-
-projectRoutes.get("/", async (c) => {
-  try {
-    const userId = c.get("userId");
-    const limit = parseInt(c.req.query("limit") || "20", 10);
-    const offset = parseInt(c.req.query("offset") || "0", 10);
-
-    console.log(`[GET /projects/] userId=${userId}, limit=${limit}, offset=${offset}`);
-    const userProjects = await getProjectsByUser(userId, limit, offset);
-    console.log(`[GET /projects/] Found ${userProjects.length} projects`);
-    return c.json({ projects: userProjects });
-  } catch (err: any) {
-    console.error("[GET /projects/] ERROR:", err.message, err.stack);
-    const safeError = err.message.toLowerCase().includes("failed query") 
-      ? "Unable to load projects due to a database schema mismatch. Please try again." 
-      : "Unable to load projects. Please try again.";
-    return c.json({ error: safeError }, 500);
+    const isProd = process.env.NODE_ENV === "production";
+    return c.json({
+      error: isProd
+        ? "Unable to load projects. Please try again."
+        : err.message || "Unknown error",
+    }, 500);
   }
 });
 

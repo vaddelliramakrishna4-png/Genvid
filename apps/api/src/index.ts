@@ -56,23 +56,27 @@ app.get("/", (c) => {
 });
 
 app.get("/health", async (c) => {
+  const start = Date.now();
   try {
     const { getDb, projects } = await import("@genvid/db");
-    const { count } = await import("drizzle-orm");
     const db = getDb();
-    await db.select({ value: count() }).from(projects).limit(1);
-    
+    await db.select({ id: projects.id }).from(projects).limit(0);
+
     return c.json({
       status: "ok",
       service: "genvid-api",
-      database: "connected"
+      database: "connected",
+      latencyMs: Date.now() - start,
+      timestamp: new Date().toISOString(),
     });
   } catch (err: any) {
     return c.json({
       status: "error",
       service: "genvid-api",
       database: "disconnected",
-      error: err.message
+      error: err.message,
+      latencyMs: Date.now() - start,
+      timestamp: new Date().toISOString(),
     }, 500);
   }
 });
