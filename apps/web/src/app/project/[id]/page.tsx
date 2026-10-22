@@ -85,22 +85,23 @@ export default function ProjectPage() {
 
     if (project.status !== lastStatus) {
       setLastStatus(project.status);
-      let initSec = 30;
+      let initSec = 20;
       if (project.status === "generating_voice") {
-        // Base estimation: ~30-40s based on video length and narration tracks
-        initSec = Math.max(25, Math.min(45, (scenes.length || 3) * 10));
+        // Fast batch Kokoro synthesis: ~15-20s for 6 tracks
+        initSec = Math.max(12, Math.min(25, (scenes.length || 3) * 3));
       } else if (project.status === "aligning") {
-        initSec = 8;
+        initSec = 6;
       } else if (project.status === "compositing") {
-        initSec = 20;
+        // Fast ultrafast FFmpeg composition
+        initSec = 14;
       } else if (project.status === "uploading") {
-        initSec = 5;
+        initSec = 4;
       }
       setCountdownSec(initSec);
     }
 
     const timer = setInterval(() => {
-      setCountdownSec((prev) => (prev > 1 ? prev - 1 : 1));
+      setCountdownSec((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
     return () => clearInterval(timer);
@@ -446,7 +447,7 @@ export default function ProjectPage() {
                       alignItems: "center",
                       gap: "4px"
                     }}>
-                      ⏱ ~{countdownSec}s
+                      ⏱ {countdownSec > 0 ? `~${countdownSec}s` : "Processing..."}
                     </span>
                   )}
                 </div>
@@ -456,14 +457,14 @@ export default function ProjectPage() {
         </div>
 
         <div style={{ height: "8px", background: "var(--bg-card)", borderRadius: "99px", overflow: "hidden", margin: "16px 0 8px" }}>
-          <i style={{ display: "block", height: "100%", width: `${currentProgress}%`, background: "var(--accent-gradient)", borderRadius: "99px", transition: "width 1s linear" }}></i>
+          <i style={{ display: "block", height: "100%", width: `${currentProgress}%`, background: "var(--accent-gradient)", borderRadius: "99px", transition: "width 0.6s ease" }}></i>
         </div>
         
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <span style={{ color: "var(--text-secondary)", fontSize: "11px", fontWeight: 600 }}>{currentProgress}%</span>
             <span style={{ color: "var(--accent-violet)", fontSize: "11px", fontWeight: 700 }}>
-              • ~{countdownSec}s remaining
+              {countdownSec > 0 ? `• ~${countdownSec}s remaining` : "• Finalizing step..."}
             </span>
           </div>
           <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>

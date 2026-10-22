@@ -25,6 +25,9 @@ export default function CreatePage() {
   const [voice, setVoice] = useState(0);
   const voices = ["Indian English · calm ⏵", "US English · energetic ⏵", "UK English · pro ⏵"];
 
+  const [submitStage, setSubmitStage] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const handleCreate = async () => {
     if (isSubmitting) return;
     const finalIdea = idea.trim();
@@ -33,8 +36,16 @@ export default function CreatePage() {
       return;
     }
     setIsSubmitting(true);
+    setErrorMessage(null);
+    setSubmitStage("Crafting your video concept...");
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setErrorMessage("Your session has expired. Please log in again.");
+        setIsSubmitting(false);
+        return;
+      }
       
       const durationValues = [15, 30, 60];
       const voiceKeys = ["en-IN-calm-male", "en-US-energetic", "en-GB-pro"];
@@ -45,48 +56,132 @@ export default function CreatePage() {
         inputText: combinedIdea,
         styleKey: style.toLowerCase(),
         mode: tab === "idea" ? "idea" : "verbatim_script",
-        durationSec: durationValues[duration] || 15,
+        durationSec: durationValues[duration] || 30,
+        aspectRatio: "9:16",
         voiceKey: voiceKeys[voice] || "en-IN-calm-male"
       };
 
-      // Removed mock_biz and mock_char injection because they are not valid UUIDs 
-      // and do not exist in the database, causing Postgres to crash on insert.
-      // if (business !== 2) { payload.businessProfileId = `mock_biz_${business}`; }
-      // if (character !== 2) { payload.characterId = `mock_char_${character}`; }
-
-      const res = await fetch(`/api/v1/projects`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const resText = await res.text();
-      let data: any = null;
-      try {
-        data = JSON.parse(resText);
-      } catch {
-        data = { error: resText || res.statusText };
-      }
-
-      if (res.ok && data?.success) {
-        const pid = data.project?.id || data.projectId;
-        if (pid?.startsWith("prj_")) {
-          sessionStorage.setItem(`fallback_project_${pid}`, JSON.stringify(data));
+      // Helper to poll for newly created project in case backend received request
+      // but Vercel proxy rewrite timed out (502 ROUTER_EXTERNAL_TARGET_ERROR)
+      const checkForCreatedProject = async (retries = 6, delayMs = 2500): Promise<string | null> => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            const pollRes = await fetch(`/api/v1/projects?limit=5&t=${Date.now()}`, {
+              headers: {
+                "Authorization": `Bearer ${session.access_token}`,
+                "Cache-Control": "no-cache"
+              },
+              credentials: "same-origin"
+            });
+            if (pollRes.ok) {
+              const pollData = await pollRes.json();
+              const recent = pollData.projects?.find((p: any) => {
+                const createdTime = new Date(p.createdAt || p.created_at || Date.now()).getTime();
+                const isRecent = (Date.now() - createdTime) < 180000; // Within last 3 minutes
+                const matchesText = p.inputText?.includes(finalIdea.slice(0, 30)) || p.title?.includes(finalIdea.slice(0, 30));
+                return isRecent && matchesText;
+              });
+              if (recent?.id) return recent.id;
+            }
+          } catch (e) {
+            console.warn("Polling recent projects attempt failed:", e);
+          }
+          if (i < retries - 1) {
+            await new Promise((r) => setTimeout(r, delayMs));
+          }
         }
-        router.push(`/project/${pid}`);
-      } else {
-        console.error("API Error details:", data);
-        alert(`Creation failed: ${data?.error || res.statusText || 'Unknown server error'}`);
+        return null;
+      };
+
+      // Attempt to send project creation request with auto-retry
+      let projectId: string | null = null;
+      let lastError = "";
+
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          if (attempt === 1) {
+            setSubmitStage("Connecting to AI engine...");
+          } else {
+            setSubmitStage("Engine waking up, finalizing scenes (attempt 2/2)...");
+          }
+
+          const res = await fetch(`/api/v1/projects`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const resText = await res.text();
+          let data: any = null;
+          try {
+            data = JSON.parse(resText);
+          } catch {
+            data = { error: resText || res.statusText };
+          }
+
+          if (res.ok && data?.success) {
+            projectId = data.project?.id || data.projectId;
+            if (projectId?.startsWith("prj_")) {
+              sessionStorage.setItem(`fallback_project_${projectId}`, JSON.stringify(data));
+            }
+            break;
+          } else {
+            lastError = data?.error || res.statusText || "Server error";
+            console.warn(`[CREATE ATTEMPT ${attempt} FAILED]:`, lastError);
+
+            // If it's a Vercel proxy error (502 / ROUTER_EXTERNAL_TARGET_ERROR / 504),
+            // check if the project actually got saved in the database!
+            setSubmitStage("Checking generated storyboard...");
+            const detectedId = await checkForCreatedProject(4, 2500);
+            if (detectedId) {
+              projectId = detectedId;
+              break;
+            }
+          }
+        } catch (fetchErr: any) {
+          console.warn(`[CREATE ATTEMPT ${attempt} NETWORK ERROR]:`, fetchErr);
+          lastError = fetchErr.message || String(fetchErr);
+          setSubmitStage("Checking server connection...");
+          const detectedId = await checkForCreatedProject(4, 2500);
+          if (detectedId) {
+            projectId = detectedId;
+            break;
+          }
+        }
+
+        if (attempt < 2 && !projectId) {
+          await new Promise((r) => setTimeout(r, 2000));
+        }
       }
+
+      if (projectId) {
+        setSubmitStage("Storyboard ready! Loading project...");
+        router.push(`/project/${projectId}`);
+        return;
+      }
+
+      // Final check before showing error
+      setSubmitStage("Checking recent submissions...");
+      const finalCheckId = await checkForCreatedProject(3, 2000);
+      if (finalCheckId) {
+        router.push(`/project/${finalCheckId}`);
+        return;
+      }
+
+      // If truly failed, show friendly in-page error message
+      setErrorMessage(
+        `Server was slow to respond (${lastError.slice(0, 80)}). Your idea is preserved above. Please click below to try again.`
+      );
     } catch (err: unknown) {
-      console.error("Network/Fetch error:", err);
-      alert(`Failed to create project: ${err instanceof Error ? err.message : String(err)}`);
+      console.error("Creation error:", err);
+      setErrorMessage(err instanceof Error ? err.message : String(err));
     } finally {
       setIsSubmitting(false);
+      setSubmitStage("");
     }
   };
   
@@ -210,17 +305,56 @@ export default function CreatePage() {
         </select>
       </label>
 
+      {/* ── Error Message ────────────────────────────────────────────────── */}
+      {errorMessage && (
+        <div style={{
+          background: "rgba(239, 68, 68, 0.12)",
+          border: "1px solid rgba(239, 68, 68, 0.35)",
+          borderRadius: "12px",
+          padding: "12px 16px",
+          marginBottom: "16px",
+          fontSize: "12px",
+          color: "#fca5a5",
+          lineHeight: 1.5,
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "10px"
+        }}>
+          <span style={{ fontSize: "16px" }}>⚠️</span>
+          <div style={{ flex: 1 }}>{errorMessage}</div>
+        </div>
+      )}
+
       {/* ── Action Button ─────────────────────────────────────────────────── */}
       <div 
         className="btn-primary" 
         onClick={handleCreate}
-        style={{ opacity: isSubmitting ? 0.5 : 1, cursor: isSubmitting ? "not-allowed" : "pointer", textAlign: "center" }}
+        style={{ 
+          opacity: isSubmitting ? 0.75 : 1, 
+          cursor: isSubmitting ? "not-allowed" : "pointer", 
+          textAlign: "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "10px"
+        }}
       >
-        {isSubmitting ? "Creating..." : "Create Video →"}
+        {isSubmitting && (
+          <div style={{
+            width: "16px",
+            height: "16px",
+            borderRadius: "50%",
+            border: "2px solid rgba(255,255,255,0.3)",
+            borderTopColor: "#fff",
+            animation: "spin 0.8s linear infinite"
+          }} />
+        )}
+        <span>{isSubmitting ? (submitStage || "Creating...") : "Create Video →"}</span>
       </div>
       <p style={{ textAlign: "center", marginTop: "12px", fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
         ≈ 2–4 min · storyboard review before anything renders
       </p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
     </div>
   );

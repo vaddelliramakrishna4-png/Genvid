@@ -298,17 +298,17 @@ export async function executeRenderMedia(projectId: string): Promise<void> {
       console.warn(`[TTS BATCH WARN] Batch synthesis warning, falling back to individual tracks:`, batchErr.message);
     }
 
-    // Verify and measure audio files
+    // Verify and measure audio files with incremental progress updates
     for (let i = 0; i < scenes.length; i++) {
       const scene = scenes[i];
       const sceneAudioPath = path.join(outputDir, `audio_${i}.wav`);
       let stats = await fs.stat(sceneAudioPath).catch(() => null);
 
       if (!stats || stats.size === 0) {
-        console.log(`[TTS FALLBACK] Regenerating missing track ${i + 1}...`);
+        console.log(`[TTS FALLBACK] Regenerating track ${i + 1}...`);
         await execWithTimeout(
-          `"${pythonExe}" "${ttsScript}" "${scene.narration.replace(/"/g, '\\"')}" "${sceneAudioPath.replace(/\\/g, "/")}"`,
-          120000,
+          `"${pythonExe}" "${ttsScript}" "${scene.narration.replace(/"/g, '\\"')}" "${sceneAudioPath.replace(/\\/g, "/")}" "${project.voiceKey || "af_heart"}"`,
+          30000,
           { env: { HF_TOKEN: process.env.HF_TOKEN || "" } }
         );
         stats = await fs.stat(sceneAudioPath).catch(() => null);
@@ -321,7 +321,11 @@ export async function executeRenderMedia(projectId: string): Promise<void> {
       const dur = await getAudioDuration(sceneAudioPath);
       sceneDurations.push(dur);
       await updateScene(scene.id, { audioUrl: sceneAudioPath, actualDuration: dur });
-      console.log(`[TTS] Track ${i + 1} ready (${dur.toFixed(2)}s).`);
+      
+      // Update progress incrementally so the user sees real-time advancement
+      const voiceProgress = Math.min(68, Math.round(45 + ((i + 1) / scenes.length) * 23));
+      await updateProjectProgress(projectId, voiceProgress);
+      console.log(`[TTS] Track ${i + 1}/${scenes.length} ready (${dur.toFixed(2)}s) — Progress ${voiceProgress}%.`);
     }
 
     const finalAudioPath = path.join(outputDir, "audio.wav");
@@ -330,14 +334,14 @@ export async function executeRenderMedia(projectId: string): Promise<void> {
       throw new Error("No valid audio files generated.");
     }
 
-    // Concatenate audio files using ffmpeg concat demuxer with forward slashes and real newlines
+    // Concatenate audio files using ffmpeg concat demuxer
     const concatListPath = path.join(outputDir, "concat_audio.txt");
     const concatContent = audioFiles.map(f => `file '${f.replace(/\\/g, "/")}'`).join("\n");
     await fs.writeFile(concatListPath, concatContent);
 
     try {
       const ffmpegStaticPath = require("ffmpeg-static");
-      await execWithTimeout(`"${ffmpegStaticPath}" -f concat -safe 0 -i "${concatListPath.replace(/\\/g, "/")}" -c copy "${finalAudioPath.replace(/\\/g, "/")}" -y`, 180000);
+      await execWithTimeout(`"${ffmpegStaticPath}" -f concat -safe 0 -i "${concatListPath.replace(/\\/g, "/")}" -c copy "${finalAudioPath.replace(/\\/g, "/")}" -y`, 30000);
     } catch (ffmpegErr: any) {
       throw new Error("Failed to concatenate audio tracks: " + ffmpegErr.message);
     }
@@ -349,7 +353,7 @@ export async function executeRenderMedia(projectId: string): Promise<void> {
       completedAt: new Date(),
     });
 
-    // ── Step 4: Alignment (faster-whisper) ────────────────────────────────
+    // ── Step 4: Alignment (faster-whisper with instant timed fallback) ──────
     await updateProjectStatus(projectId, "aligning", { progress: 70 });
     const subtitlesOutPath = path.join(outputDir, "subtitles.ass");
     const fullNarration = scenes.map(s => s.narration).join("\n");
@@ -360,10 +364,49 @@ export async function executeRenderMedia(projectId: string): Promise<void> {
     try {
       await execWithTimeout(
         `"${pythonExe}" "${alignScript}" "${finalAudioPath.replace(/\\/g, "/")}" "${scriptOutPath.replace(/\\/g, "/")}" "${subtitlesOutPath.replace(/\\/g, "/")}"`,
-        600000
+        45000 // 45s cap so it never hangs
       );
     } catch (err) {
-      console.warn("[ALIGNMENT] Warning on subtitle generation, proceeding:", err);
+      console.warn("[ALIGNMENT] Whisper notice, using timed fallback subtitles:", err);
+    }
+
+    // If faster-whisper didn't produce subtitles, generate them instantly from scene timing
+    const subStats = await fs.stat(subtitlesOutPath).catch(() => null);
+    if (!subStats || subStats.size < 50) {
+      console.log("[ALIGNMENT] Generating instant timed subtitles from scene narration...");
+      let currTime = 0;
+      const assLines = [
+        "[Script Info]",
+        "Title: GenVid Subtitles",
+        "ScriptType: v4.00+",
+        "WrapStyle: 0",
+        "ScaledBorderAndShadow: yes",
+        "",
+        "[V4+ Styles]",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+        "Style: Default,Arial,22,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2.5,1.5,2,20,20,35,1",
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
+      ];
+
+      function formatAssTime(sec: number) {
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = (sec % 60).toFixed(2).padStart(5, "0");
+        return `${h}:${String(m).padStart(2, "0")}:${s}`;
+      }
+
+      for (let idx = 0; idx < scenes.length; idx++) {
+        const dur = sceneDurations[idx] || scenes[idx].targetDuration || 5;
+        const startStr = formatAssTime(currTime);
+        const endStr = formatAssTime(currTime + dur);
+        assLines.push(`Dialogue: 0,${startStr},${endStr},Default,,0,0,0,,${scenes[idx].narration}`);
+        currTime += dur;
+      }
+
+      await fs.writeFile(subtitlesOutPath, assLines.join("\n"), "utf-8");
+      console.log("[ALIGNMENT] Fast timed subtitles created successfully.");
     }
 
     await createRenderJob({
